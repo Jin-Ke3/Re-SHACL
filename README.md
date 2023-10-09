@@ -8,7 +8,7 @@
     * EnDe-Lite1000(without_Ontology).ttl
     * EnDe-10(without_Ontology).ttl
     * EnDe-100(without_Ontology).ttl
-    * EnDe-100(without_Ontology).ttl <-- Generating
+    * EnDe-500(without_Ontology).ttl <-- Generating
 
 * Please add all datasets to "source/Datasets".
 
