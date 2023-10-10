@@ -115,12 +115,12 @@ table.add_row(['Re-SHACL', mean_time2, std2, conform2, len(result2)])
 ########### [pySHACL-OWL] ##########
 
 inter_time3 = []
-for n3 in range (0,3):
-    t5=time.time()
-    conform3, v_g3, v_t3 = validate(g, shacl_graph=sg, inference='both')  
-    t6=time.time()
-    
-    inter_time3.append(t6-t5)  
+#for n3 in range (0,3):
+t5=time.time()
+conform3, v_g3, v_t3 = validate(g, shacl_graph=sg, inference='both')  
+t6=time.time()
+
+inter_time3.append(t6-t5)  
         
 mean_time3 = np.mean(inter_time3)
 std3= np.std(inter_time3)
