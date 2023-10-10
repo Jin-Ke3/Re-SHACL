@@ -1,5 +1,6 @@
 from importlib import reload
-from rdflib import Graph
+from rdflib import Graph, Namespace
+DBO = Namespace("http://dbpedia.org/ontology/")
 from pyshacl import validate
 import time
 
@@ -29,7 +30,7 @@ g.parse("source/dbpedia_ontology.owl", format="xml")
 sg = Graph()
 # Loading the shapes graph
 sg.parse("source/ShapesGraphs/Shape_30.ttl")
-
+sg.bind("dbo", DBO)
 
 # Preheating with 10 rounds
 i = 0
@@ -86,6 +87,7 @@ inter_time2 = []
 for n2 in range (0,3):
     t3=time.time()
     fused_graph1, same_dic1, shapes = merged_graph(g, shacl_graph=sg,data_graph_format='turtle',shacl_graph_format='turtle')
+    shapes.bind("dbo", DBO)
     conform2, v_g2, v_t2 = validate(fused_graph1, shacl_graph=shapes, inference='none')   
     t4=time.time()
     
