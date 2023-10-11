@@ -42,7 +42,7 @@ if sys.version[0] == '2':
 # sg3.parse("source/ShapesGraphs/lubm/schema3.ttl")
 # print("schema3:",len(sg3))
 
-with open("source/Datasets/lubm-mkg-1.pkl", 'rb') as file:
+with open("source/Datasets/lubm-mkg-2.pkl", 'rb') as file:
     g = pickle.load(file)
 with open("source/ShapesGraphs/lubm/schema1.pkl", 'rb') as file:
     sg1 = pickle.load(file)
