@@ -3,7 +3,7 @@ from rdflib import Graph, Namespace
 UB = Namespace("http://swat.cse.lehigh.edu/onto/univ-bench.owl#")
 from pyshacl import validate
 import time
-
+import pickle
 import sys
 
 sys.path.insert(0, sys.path[0]+"/../")
