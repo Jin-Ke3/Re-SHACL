@@ -147,7 +147,7 @@ file.close()
 table.add_row(['pySHACL-RDFS', mean_time3, std3, conform3, len(result3)])
 
 
-file_table = open("Outputs/EnDe-Lite50/RunTimeResults.txt", "a+")
+file_table = open("Outputs/EnDe-Lite100/RunTimeResults.txt", "a+")
 file_table .write(str(table))
 file_table .close()
 
