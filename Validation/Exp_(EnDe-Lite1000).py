@@ -114,36 +114,36 @@ file.close()
 table.add_row(['Re-SHACL', mean_time2, std2, conform2, len(result2)])
 
 
-########### [pySHACL-OWL] ##########
+########### [pySHACL-RDFS] ##########
 
-# inter_time3 = []
-# #for n3 in range (0,3):
-# t5=time.time()
-# conform3, v_g3, v_t3 = validate(g, shacl_graph=sg, inference='both')  
-# t6=time.time()
-    
-# inter_time3.append(t6-t5)  
+inter_time3 = []
+for n3 in range (0,3):
+    t5=time.time()
+    conform3, v_g3, v_t3 = validate(g, shacl_graph=sg, inference='rdfs')  
+    t6=time.time()
+
+    inter_time3.append(t6-t5)  
         
-# mean_time3 = np.mean(inter_time3)
-# std3= np.std(inter_time3)
+mean_time3 = np.mean(inter_time3)
+std3= np.std(inter_time3)
 
-# result3=v_g3.query(result_query)
+result3=v_g3.query(result_query)
 
-# print('[pySHACL-OWL]=============================')
+print('[pySHACL-RDFS]=============================')
 
-# print(' Average validation time: ', mean_time3, 's')
-# print(' Standard deviation: ', std3, 's')
-# print(' #Violation: ', len(result3))
+print(' Average validation time: ', mean_time3, 's')
+print(' Standard deviation: ', std3, 's')
+print(' #Violation: ', len(result3))
 
-# v_g3.serialize(destination="Outputs/EnDe-Lite1000/violationGraph/pyshacl-owl_results.ttl")
+v_g3.serialize(destination="Outputs/EnDe-Lite50/violationGraph/pyshacl-RDFS_results.ttl")
 
-# # Saving the validation report in txt
+# Saving the validation report in txt
 
-# file = open("Outputs/EnDe-Lite1000/validationReports/pyshacl-owl_results.txt", "w")
-# file.write(v_t3)
-# file.close()
+file = open("Outputs/EnDe-Lite50/validationReports/pyshacl-RDFS_results.txt", "w")
+file.write(v_t3)
+file.close()
 
-# table.add_row(['Re-SHACL', mean_time3, std3, conform3, len(result3)])
+table.add_row(['pySHACL-RDFS', mean_time3, std3, conform3, len(result3)])
 
 
 file_table = open("Outputs/EnDe-Lite1000/RunTimeResults.txt", "a+")
