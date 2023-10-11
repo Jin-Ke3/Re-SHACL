@@ -18,30 +18,38 @@ if sys.version[0] == '2':
     sys.setdefaultencoding("utf-8")
 
 
-g = Graph()
-print( "Loading the data graph" )
-g.parse( "source/Datasets/lubm-skg-2.ttl")
-print(len(g))
+# g = Graph()
+# print( "Loading the data graph" )
+# g.parse( "source/Datasets/lubm-skg-2.ttl")
+# print(len(g))
+#
+# print( "Importing Ontology into the data graph")
+# g.parse("http://swat.cse.lehigh.edu/onto/univ-bench.owl", format="xml")
+# print(len(g))
+#
+# sg1 = Graph()
+# print( "Loading the shapes graph")
+# sg1.parse("source/ShapesGraphs/lubm/schema1.ttl")
+# print("schema1:",len(sg1))
+#
+# sg2 = Graph()
+# print( "Loading the shapes graph")
+# sg2.parse("source/ShapesGraphs/lubm/schema2.ttl")
+# print("schema2:",len(sg2))
+#
+# sg3 = Graph()
+# print( "Loading the shapes graph")
+# sg3.parse("source/ShapesGraphs/lubm/schema3.ttl")
+# print("schema3:",len(sg3))
 
-print( "Importing Ontology into the data graph")
-g.parse("http://swat.cse.lehigh.edu/onto/univ-bench.owl", format="xml")
-print(len(g))
-
-sg1 = Graph()
-print( "Loading the shapes graph")
-sg1.parse("source/ShapesGraphs/lubm/schema1.ttl")
-print("schema1:",len(sg1))
-
-sg2 = Graph()
-print( "Loading the shapes graph")
-sg2.parse("source/ShapesGraphs/lubm/schema2.ttl")
-print("schema2:",len(sg2))
-
-sg3 = Graph()
-print( "Loading the shapes graph")
-sg3.parse("source/ShapesGraphs/lubm/schema3.ttl")
-print("schema3:",len(sg3))
-
+with open("source/Datasets/lubm-skg-2.pkl", 'rb') as file:
+    g = pickle.load(file)
+with open("source/ShapesGraphs/lubm/schema1.pkl", 'rb') as file:
+    sg1 = pickle.load(file)
+with open("source/ShapesGraphs/lubm/schema2.pkl", 'rb') as file:
+    sg2 = pickle.load(file)
+with open("source/ShapesGraphs/lubm/schema3.pkl", 'rb') as file:
+    sg3 = pickle.load(file)
  
 def run_exp(g, sg, index):
     # Preheating with 10 rounds
