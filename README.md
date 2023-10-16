@@ -3,16 +3,13 @@
 ## DataSet:
 
 * Please download datasets:
-    * EnDe-Lite50(without_Ontology).ttl
-    * EnDe-Lite100(without_Ontology).ttl
-    * EnDe-Lite1000(without_Ontology).ttl
-    * EnDe-10(without_Ontology).ttl
-    * EnDe-30(without_Ontology).ttl <-- Generating
-    * EnDe-60(without_Ontology).ttl <-- Generating
-    * EnDe-100(without_Ontology).ttl
+    * EnDe-Lite50(without_Ontology).ttl : https://drive.google.com/file/d/14RXnJZL9e6ZdbFtfPH69t1lI5Idbnkze/view?usp=drive_link
+    * EnDe-Lite100(without_Ontology).ttl : https://drive.google.com/file/d/1xWMp2mSEk0i7X_nHp3JjZRnvt3bPiz96/view?usp=drive_link
+    * EnDe-Lite1000(without_Ontology).ttl : https://drive.google.com/file/d/1B2Xbukuj93vHeRBvbgnPCoYAxbHcC7Hg/view?usp=drive_link
+      * The genaration of EnDe-Lite datasets cover 30 classes.
 
-* EnDe-Lite covers 30 classes.
-* EnDe involves 427 classes (including the 30 classes above)
+    * LUBM datasets from: https://data.uni-hannover.de/dataset/trav-shacl-benchmarks-experimental-settings-and-evaluation/resource/3dcefa6d-d57e-4de7-bc11-56227ae4e119?inner_span=True
+      * Our experiments used only three SKGs and three MKGs.
 
 * Please add all datasets to "source/Datasets/".
 
