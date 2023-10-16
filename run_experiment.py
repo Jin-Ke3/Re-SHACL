@@ -32,6 +32,8 @@ def check_directory_exists_otherwise_create(directory):
 def run_pyshacl(dataset_name, g, sg, inference_method):
     if inference_method == 'both':
         method = 'pyshacl-owl'
+    elif inference_method == 'rdfs':
+        method = 'pyshacl-rdfs'
     else:
         method = 'pyshacl'
 
@@ -136,15 +138,18 @@ def run_reshacl(dataset_name, g, sg, inference_method):
 def run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method='pyshacl', ontology=''):
     g = Graph()
     # Loading the data graph
+    print("***** Loading the data graph *****")
     logging.getLogger('rdflib').setLevel(logging.ERROR)
     g.parse(dataset_uri)
 
     if ontology != '':
         # Importing Ontology into the data graph
+        print("***** Loading the ontology *****")
         g.parse(ontology, format="xml")
 
     sg = Graph()
     # Loading the shapes graph
+    print("***** Loading the shapes graph *****")
     sg.parse(shapes_graph_uri)
     sg.bind("dbo", DBO)
 
