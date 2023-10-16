@@ -135,11 +135,11 @@ print(' Average validation time: ', mean_time3, 's')
 print(' Standard deviation: ', std3, 's')
 print(' #Violation: ', len(result3))
 
-v_g3.serialize(destination="Outputs/EnDe-Lite50/violationGraph/pyshacl-RDFS_results.ttl")
+v_g3.serialize(destination="Outputs/EnDe-Lite1000/violationGraph/pyshacl-RDFS_results.ttl")
 
 # Saving the validation report in txt
 
-file = open("Outputs/EnDe-Lite50/validationReports/pyshacl-RDFS_results.txt", "w")
+file = open("Outputs/EnDe-Lite1000/validationReports/pyshacl-RDFS_results.txt", "w")
 file.write(v_t3)
 file.close()
 
