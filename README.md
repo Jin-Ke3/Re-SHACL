@@ -16,7 +16,7 @@
 
 ## Shapes Graph:
 
-* The shapes graphs needed for the experiment have been stored in the folder source/ShapesGraphs.
+* The shapes graphs needed for the experiment have been stored in the folder `source/ShapesGraphs`.
   * Shape_30 is dedicated to the validation of the EnDe datasets.
   * For different sizes of LUBM datasets we use the three schemas provided in the paper **Trav-SHACL: Efficiently validating networks of SHACL constraints**.
 
