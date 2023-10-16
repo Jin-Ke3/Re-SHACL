@@ -133,14 +133,15 @@ def run_reshacl(dataset_name, g, sg, inference_method):
     print(table)
 
 
-def run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method='pyshacl'):
+def run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method='pyshacl', ontology=''):
     g = Graph()
     # Loading the data graph
     logging.getLogger('rdflib').setLevel(logging.ERROR)
     g.parse(dataset_uri)
 
-    # Importing Ontology into the data graph
-    g.parse("source/dbpedia_ontology.owl", format="xml")
+    if ontology != '':
+        # Importing Ontology into the data graph
+        g.parse(ontology, format="xml")
 
     sg = Graph()
     # Loading the shapes graph
@@ -171,40 +172,49 @@ if __name__ == "__main__":
     run_experiment(dataset_name="EnDe-Lite50",
                    dataset_uri="source/Datasets/EnDe-Lite50(without_Ontology).ttl",
                    shapes_graph_uri="source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl')
+                   method='pyshacl',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite50",
                    "source/Datasets/EnDe-Lite50(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl-rdfs')
+                   method='pyshacl-rdfs',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite50",
                    "source/Datasets/EnDe-Lite50(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='reshacl')
+                   method='reshacl',
+                   ontology="source/dbpedia_ontology.owl")
 
     # Experiment EnDe-Lite100
     run_experiment("EnDe-Lite100",
                    "source/Datasets/EnDe-Lite100(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl')
+                   method='pyshacl',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite100",
                    "source/Datasets/EnDe-Lite100(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl-rdfs')
+                   method='pyshacl-rdfs',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite100",
                    "source/Datasets/EnDe-Lite100(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='reshacl')
+                   method='reshacl',
+                   ontology="source/dbpedia_ontology.owl")
 
     # Experiment EnDe-Lite1000
     run_experiment("EnDe-Lite1000",
                    "source/Datasets/EnDe-Lite1000(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl')
+                   method='pyshacl',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite1000",
                    "source/Datasets/EnDe-Lite1000(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='pyshacl-rdfs')
+                   method='pyshacl-rdfs',
+                   ontology="source/dbpedia_ontology.owl")
     run_experiment("EnDe-Lite1000",
                    "source/Datasets/EnDe-Lite1000(without_Ontology).ttl",
                    "source/ShapesGraphs/Shape_30.ttl",
-                   method='reshacl')
+                   method='reshacl',
+                   ontology="source/dbpedia_ontology.owl")

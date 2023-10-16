@@ -39,6 +39,8 @@ def get_input_from_user(variable_name, custom_msg=""):
             ans = input()
 
     print(f"{variable_name}: '{user_input}' set")
+    print("*************************************************\n")
+
     return user_input
 
 
@@ -66,14 +68,20 @@ def get_selection_from_user(variable_name, methods):
             ans = input()
 
     print(f"{variable_name}: '{methods[user_input - 1]}' set")
+    print("*************************************************\n")
 
     return methods[user_input - 1]
 
 
-# def select_dataset_by_user():
-
 def user_wants_prebuilt_dataset():
     return get_selection_from_user("method", ["Built-in", "Custom"]) == "Built-in"
+
+
+def select_ontology(selected_dataset):
+    if selected_dataset.lower() == "lubm":
+        return "http://swat.cse.lehigh.edu/onto/univ-bench.owl"
+    if selected_dataset.lower() == "ende":
+        return "source/dbpedia_ontology.owl"
 
 
 if __name__ == '__main__':
@@ -83,14 +91,16 @@ if __name__ == '__main__':
         datasets = find_datasets(selected_dataset)
         dataset_uri = get_selection_from_user("dataset", datasets)
         dataset_name = get_dataset_name_from_uri(selected_dataset, dataset_uri)
-        print(dataset_name)
+        ontology = select_ontology(selected_dataset)
         shapes_graphs = find_shapes_graphs(selected_dataset)
         shapes_graph_uri = get_selection_from_user("shapes graph", shapes_graphs)
     else:
         dataset_name = get_input_from_user("dataset folder name")
         dataset_uri = get_input_from_user("dataset filepath")
         shapes_graph_uri = get_input_from_user("shapes filepath")
+        print("The following is optional, simply leave empty if it does not apply")
+        ontology = get_input_from_user("ontology")
 
     method = get_selection_from_user("method", ['pyshacl', 'pyshacl-rdfs', 'pyshacl-owl', 'reshacl'])
     print(f"Running experiment {dataset_name} using method {method}")
-    run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method)
+    run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method, ontology)
