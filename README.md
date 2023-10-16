@@ -15,8 +15,7 @@
 
 ## Experiments:
 
-  * Run the experiments by running the scripts in the category "Validation". 
-    * The performance of pySHACL and ReSHACL is currently tested in three rounds on each dataset, resulting in average runtimes (s). pySHACL-OWL's performance is only experimented with one round on each dataset (because it is too time-consuming).
+  * Run the experiments by running the script "run.py"
   
   * The validation results are recorded in the folder corresponding to each data set in "Outputs".
     * The validation result **graph** is stored in the "validationGraph" folder. 
