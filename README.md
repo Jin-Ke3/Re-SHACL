@@ -8,7 +8,7 @@
     * EnDe-Lite1000(without_Ontology).ttl : [Download](https://drive.google.com/file/d/1B2Xbukuj93vHeRBvbgnPCoYAxbHcC7Hg/view?usp=drive_link)
       * The genaration of EnDe-Lite datasets cover 30 classes.
 
-    * LUBM datasets from: https://data.uni-hannover.de/dataset/trav-shacl-benchmarks-experimental-settings-and-evaluation/resource/3dcefa6d-d57e-4de7-bc11-56227ae4e119?inner_span=True**
+    * LUBM datasets from: https://data.uni-hannover.de/dataset/trav-shacl-benchmarks-experimental-settings-and-evaluation/resource/3dcefa6d-d57e-4de7-bc11-56227ae4e119?inner_span=True
       * We follow the LUBM datasets for the paper **Trav-SHACL: Efficiently validating networks of SHACL constraints**.
       * Our experiments used only three SKGs and three MKGs.
 
