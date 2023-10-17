@@ -24,11 +24,47 @@ The shapes graphs needed for the experiment have been stored in the folder `sour
 
 ## Experiments:
 Run the experiments by running the script `run.py`.
+
+```
+Choose your method: 
+1. Built-in
+2. Custom
+```
+Where
+* `1. Built-in` is an option to use the same data graphs from our paper.
+* `2. Custom` is the option to use the user's own data graphs.
+  
+Enter the option number and enter, then confirm the option. If you want to use the same experimental data as ours, please select `1`.
+
+Then you can choose data graph and shape graph:
+```
+Choose your dataset: 
+1. EnDe
+2. LUBM
+```
+Please add the desired Datasets to the specified folder before running the experiment.
+ * If you selected the `1.EnDe` dataset, then the corresponding shapes graph is `Shape_30`.
+ * If you selected the `2.LUBM` dataset, then there are three shapes graphs available:
+    * ```
+      Choose your shapes graph: 
+      1. source/ShapesGraphs/lubm/schema1.ttl
+      2. source/ShapesGraphs/lubm/schema3.ttl
+      3. source/ShapesGraphs/lubm/schema2.ttl
+      ```
+Finally, you can choose the method you want to use:
+```
+Choose your method: 
+1. pyshacl
+2. pyshacl-rdfs
+3. pyshacl-owl
+4. reshacl 
+```
+The experiment will be performed after you have determined the desired method.
   
 The validation results are recorded in the folder corresponding to each data set in `Outputs`.
   * The validation result **graph** is stored in the `validationGraph` folder. 
   * Validation reports are stored in the `validationReports` folder. 
   * The runtime and number of violations are recorded in the file `RunTimeResults.txt`.
 
-## 
+
 
