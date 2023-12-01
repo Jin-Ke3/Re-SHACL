@@ -79,7 +79,7 @@ def user_wants_prebuilt_dataset():
 
 def select_ontology(selected_dataset):
     if selected_dataset.lower() == "lubm":
-        return "http://swat.cse.lehigh.edu/onto/univ-bench.owl"
+        return ""
     if selected_dataset.lower() == "ende":
         return "source/dbpedia_ontology.owl"
 
