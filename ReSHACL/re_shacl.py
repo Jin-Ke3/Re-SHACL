@@ -88,7 +88,7 @@ def check_asymmetricProperty(g, p): # prp-asyp
 def check_transitiveProperty(g, p):    
     if (p, RDF.type, OWL.TransitiveProperty) in g: 
         for s, o in g.subject_objects(p):
-            trans = g.transitive_objects(s, p)
+            trans = g.transitive_objects(o, p)
             for oo in trans:          
                 g.add((s, p, oo))  
                 
