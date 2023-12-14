@@ -483,7 +483,7 @@ def merge_target_classes(g, found_node_targets, same_nodes, target_classes):  #T
     
             
         
-def merge_same_property(g, properties, found_node_targets, same_nodes, target_classes):
+def merge_same_property(g, properties, found_node_targets, same_nodes, target_classes, shapes, target_property):
     for focus_property in properties:
 
         while not all_subProperties_merged(g, focus_property):
@@ -529,28 +529,24 @@ def merge_same_property(g, properties, found_node_targets, same_nodes, target_cl
                 g.remove((same_property, OWL.sameAs, same_property))
                 
                 if same_property != focus_property:
-                    if not same_property in properties:
-                        
-                        for p, o in g.predicate_objects(same_property):
-                            g.remove((same_property, p, o))
-                            g.add((focus_property, p, o))
-                        for s, p in g.subject_predicates(same_property):
-                            g.remove((s, p, same_property))
-                            g.add((s, p, focus_property))
-                        for s, o in g.subject_objects(same_property):
-                            g.add((s, focus_property, o))
-                            g.remove((s, same_property, o))
-                        
-                    else:
-                        for s, o in g.subject_objects(same_property):
-                            g.add((s, focus_property, o))
-                            
-                        for p, o in g.predicate_objects(same_property):
-                            g.add((focus_property, p, o))
-                        for s, p in g.subject_predicates(same_property):
-                            g.add((s, p, focus_property))
-            
-                #print(same_property)    
+              
+                    for p, o in g.predicate_objects(same_property):
+                        g.remove((same_property, p, o))
+                        g.add((focus_property, p, o))
+                    for s, p in g.subject_predicates(same_property):
+                        g.remove((s, p, same_property))
+                        g.add((s, p, focus_property))
+                    for s, o in g.subject_objects(same_property):
+                        g.add((s, focus_property, o))
+                        g.remove((s, same_property, o))
+                    
+                    if same_property in properties:    
+                        # properties.remove(same_property) 
+                        for s in shapes:  # Shapes graph re-writing
+                            for blin in target_property:
+                                if same_property in s.sg.graph.objects(blin, SH_path):
+                                    s.sg.graph.remove((blin, SH_path, same_property))
+                                    s.sg.graph.add((blin, SH_path, focus_property))
                     
                 g.remove((focus_property, OWL.sameAs, same_property))
             
@@ -700,7 +696,7 @@ def merged_graph(
         target_range(vg, found_node_targets, same_nodes, target_classes)
         
         # merge same properties 
-        merge_same_property(vg, path_value, found_node_targets, same_nodes, target_classes)
+        merge_same_property(vg, path_value, found_node_targets, same_nodes, target_classes, shapes, target_property)
         
         # merge same nodes
         for focus_node in found_node_targets:    
@@ -753,7 +749,7 @@ def inter_graph(
     
     import owlrl
 
-    from pyshacl.inference import CustomRDFSOWLRLSemantics
+    from pyshacl.inference import CustomRDFSOWLRLSemantics, CustomRDFSSemantics
         
     shapes, named_graphs = load_graph(data_graph, shacl_graph, data_graph_format,shacl_graph_format)  
     
@@ -766,6 +762,27 @@ def inter_graph(
     result = len(g)
     
     return result, g
+
+def inter_graph_rdfs(
+    data_graph: Union[GraphLike, str, bytes],
+    shacl_graph: Optional[Union[GraphLike, str, bytes]] = None,
+    data_graph_format: Optional[str] = None,
+    shacl_graph_format: Optional[str] = None,
+    ):
     
-             
- 
+    import owlrl
+
+    from pyshacl.inference import CustomRDFSOWLRLSemantics, CustomRDFSSemantics
+        
+    shapes, named_graphs = load_graph(data_graph, shacl_graph, data_graph_format,shacl_graph_format)  
+    
+    # TODO
+    inferencer = owlrl.DeductiveClosure(CustomRDFSSemantics)
+    
+    g = named_graphs[0]
+    
+    inferencer.expand(g)
+    
+    result = len(g)
+    
+    return result, g 
