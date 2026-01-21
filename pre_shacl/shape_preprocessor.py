@@ -83,7 +83,15 @@ def pre_process_shacl_graph_full(data_graph: Graph, shacl_graph: Graph, regime: 
         
     Returns:
         Tuple of (entailed data graph, extended shapes graph)
+        
+    Raises:
+        ValueError: If an invalid regime is provided
     """
+    # Validate regime
+    valid_regimes = {level.value for level in InferenceLevel}
+    if regime not in valid_regimes:
+        raise ValueError(f"Invalid regime '{regime}'. Must be one of: {', '.join(valid_regimes)}")
+    
     if regime == InferenceLevel.NONE.value:
         return data_graph, shacl_graph
 

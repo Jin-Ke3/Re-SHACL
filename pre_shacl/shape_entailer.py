@@ -47,6 +47,9 @@ def entail_shape_graph(data_graph: Graph, regime: str, shacl_graph: Graph,
     """
     Add new property shapes based on entailment in the data graph.
     
+    This function extends closed shapes with sub-properties based on
+    rdfs:subPropertyOf relationships in the data graph.
+    
     Args:
         data_graph: The entailed data graph
         regime: The inference regime
@@ -62,6 +65,7 @@ def entail_shape_graph(data_graph: Graph, regime: str, shacl_graph: Graph,
     subgraph = get_subgraph_for_entailment(data_graph, regime)
     property_shape_path = shacl_graph.value(property_shape, SH.path)
 
+    # Find sub-properties: properties where (subProp rdfs:subPropertyOf property_shape_path)
     for dg_s, dg_p, dg_o in subgraph.triples((None, None, URIRef(property_shape_path))):
         # Check if the new property is not already in the shape properties
         if dg_s not in shape_properties and dg_s not in old_ignored_properties:

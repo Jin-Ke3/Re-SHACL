@@ -32,6 +32,11 @@ def apply_rdfs_rules(data_graph: Graph, inferred_triples: Set[Tuple]) -> None:
         for _, _, super_property in data_graph.triples((super_property_name, RDFS.subPropertyOf, None)):
             inferred_triples.add((sub_property_name, RDFS.subPropertyOf, super_property))
 
+    # Property hierarchy: if P subPropertyOf Q and (x P y), then (x Q y)
+    for sub_property, _, super_property in data_graph.triples((None, RDFS.subPropertyOf, None)):
+        for subject, _, obj in data_graph.triples((None, sub_property, None)):
+            inferred_triples.add((subject, super_property, obj))
+
     for subclass_name, _, superclass_name in data_graph.triples((None, RDFS.subClassOf, None)):
         # Transitive classes
         for _, _, super_class in data_graph.triples((superclass_name, RDFS.subClassOf, None)):

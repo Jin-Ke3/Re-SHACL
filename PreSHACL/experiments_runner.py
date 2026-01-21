@@ -10,211 +10,164 @@ of different SHACL validation approaches including:
 
 import time
 from pyshacl import validate
-import sys
-from pathlib import Path
-from typing import Tuple, Optional, List
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from pre_shacl.pre_processor import *
-from PreSHACL import data
-from PreSHACL.data import *
+import data
+from pre_processor import *
 from rdflib import SH, XSD
 import pandas as pd
 from ReSHACL.re_shacl import merged_graph
+from data import *
 import numpy as np
 from owlrl import *
 import scipy.stats as st
-import rdflib
+import random
 import logging
-from .config import ExperimentConfig, DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
-
-class ValidationPipeline:
-    """
-    Orchestrates SHACL validation experiments with different preprocessing methods.
-    
-    This class eliminates code duplication by providing a unified interface
-    for running validation with various preprocessing strategies.
-    """
-    
-    def __init__(self, config: ExperimentConfig = DEFAULT_CONFIG):
-        """
-        Initialize the validation pipeline with configuration.
-        
-        Args:
-            config: Experiment configuration settings.
-        """
-        self.config = config
-    
-    def _load_graphs(self, 
-                     data_graph_path: str, 
-                     shapes_graph_path: str) -> Tuple[rdflib.Graph, rdflib.Graph]:
-        """Load data and shapes graphs from files."""
-        shapes_graph = load_turtle_graph(shapes_graph_path)
-        data_graph = load_turtle_graph(data_graph_path)
-        return data_graph, shapes_graph
-    
-    def _preprocess_closed_shaper(self,
-                                   data_graph: rdflib.Graph,
-                                   shapes_graph: rdflib.Graph,
-                                   inference_lvl: str) -> Tuple[rdflib.Graph, rdflib.Graph]:
-        """Apply Closed-Shaper preprocessing."""
-        return pre_process_shacl_graph_full(data_graph, shapes_graph, inference_lvl)
-    
-    def _preprocess_reshacl(self,
-                           data_graph: rdflib.Graph,
-                           shapes_graph: rdflib.Graph) -> Tuple[rdflib.Graph, dict, rdflib.Graph]:
-        """Apply Re-SHACL preprocessing."""
-        return merged_graph(data_graph, 
-                          shacl_graph=shapes_graph,
-                          data_graph_format='turtle',
-                          shacl_graph_format='turtle')
-    
-    def _preprocess_combined(self,
-                            data_graph: rdflib.Graph,
-                            shapes_graph: rdflib.Graph,
-                            inference_lvl: str) -> Tuple[rdflib.Graph, dict, rdflib.Graph]:
-        """Apply combined Closed-Shaper + Re-SHACL preprocessing."""
-        data_graph_entailed, shapes_graph_entailed = self._preprocess_closed_shaper(
-            data_graph, shapes_graph, inference_lvl
-        )
-        return self._preprocess_reshacl(data_graph_entailed, shapes_graph_entailed)
-    
-    def _run_single_preprocessing(self,
-                                  data_graph_path: str,
-                                  shapes_graph_path: str,
-                                  method: str,
-                                  inference_lvl: str) -> Tuple[float, rdflib.Graph, rdflib.Graph]:
-        """
-        Run a single preprocessing iteration.
-        
-        Returns:
-            Tuple of (preprocessing_time, processed_data_graph, processed_shapes_graph).
-        """
-        data_graph, shapes_graph = self._load_graphs(data_graph_path, shapes_graph_path)
-        
-        start = time.time()
-        
-        if method == 'closed-shaper':
-            data_graph_entailed, shapes_graph_entailed = self._preprocess_closed_shaper(
-                data_graph, shapes_graph, inference_lvl
-            )
-        elif method == 're-shacl':
-            data_graph_entailed, _, shapes_graph_entailed = self._preprocess_reshacl(
-                data_graph, shapes_graph
-            )
-        elif method == 're-shacl+closed-shaper':
-            data_graph_entailed, _, shapes_graph_entailed = self._preprocess_combined(
-                data_graph, shapes_graph, inference_lvl
-            )
-        else:
-            # No preprocessing
-            data_graph_entailed = data_graph
-            shapes_graph_entailed = shapes_graph
-        
-        end = time.time()
-        return (end - start), data_graph_entailed, shapes_graph_entailed
-    
-    def _run_single_validation(self,
-                              data_graph: rdflib.Graph,
-                              shapes_graph: rdflib.Graph,
-                              inference_lvl: str) -> Tuple[float, rdflib.Graph]:
-        """
-        Run a single validation iteration.
-        
-        Returns:
-            Tuple of (validation_time, validation_results_graph).
-        """
-        # Re-SHACL methods always use inference='none'
-        start = time.time()
-        conforms, validation_graph, validation_text = validate(
-            data_graph,
-            shacl_graph=shapes_graph,
-            data_graph_format='turtle',
-            shacl_graph_format='turtle',
-            inference=inference_lvl
-        )
-        end = time.time()
-        
-        logger.info(validation_text)
-        return (end - start), validation_graph
+# Experiment configuration constants
+DEFAULT_NUM_REPETITIONS = 3
+DEFAULT_TIME_MULTIPLIER = 1
+CONFIDENCE_LEVEL = 0.95
 
 
 def timed_validation(data_graph, shapes_graph, inference_lvl='rdfs'):
-    """Run a single timed SHACL validation (legacy wrapper)."""
-    pipeline = ValidationPipeline()
-    validation_time, _ = pipeline._run_single_validation(data_graph, shapes_graph, inference_lvl)
-    logger.info(f"{validation_time} seconds")
+    """Run a single timed SHACL validation."""
+    start = time.time()
+    conforms, validation_graph, validation_text = validate(data_graph, shacl_graph=shapes_graph,
+                                         data_graph_format='turtle',
+                                         shacl_graph_format='turtle',
+                                         inference=inference_lvl)
+
+    end = time.time()
+    logger.info(validation_text)
+    logger.info(f"{end - start} seconds")
 
 
 def average_timed_validation(data_graph_path, shapes_graph_path, inference_lvl='none', method='none'):
     """Calculate and return the average runtime of validations and the number of violations."""
-    pipeline = ValidationPipeline()
-    config = pipeline.config
-    
-    # Run preprocessing repetitions
-    total_preprocessing_time = 0.0
-    for _ in range(config.num_repetitions):
-        preprocessing_time, data_graph_entailed, shapes_graph_entailed = pipeline._run_single_preprocessing(
-            data_graph_path, shapes_graph_path, method, inference_lvl
-        )
-        total_preprocessing_time += preprocessing_time
-    
-    avg_rewriting_time = round(total_preprocessing_time / config.num_repetitions * config.time_multiplier, 2)
-    
-    # Determine inference level for validation
-    validation_inference = 'none' if method in ['re-shacl', 're-shacl+closed-shaper'] else inference_lvl
-    if validation_inference == 'owl-ld':
-        validation_inference = 'owlrl'
-    
-    # Run validation repetitions
-    total_validation_time = 0.0
-    validation_graph = None
-    for _ in range(config.num_repetitions):
-        validation_time, validation_graph = pipeline._run_single_validation(
-            data_graph_entailed, shapes_graph_entailed, validation_inference
-        )
-        total_validation_time += validation_time
-    
-    avg_validation_time = round(total_validation_time / config.num_repetitions * config.time_multiplier, 2)
-    num_violations = len(list(validation_graph.triples((None, SH.result, None))))
-    
-    return avg_rewriting_time, avg_validation_time, num_violations
+    num_repetitions = DEFAULT_NUM_REPETITIONS
+    multiplier = DEFAULT_TIME_MULTIPLIER
+    total_time = 0
+    if method == 'closed-shaper':
+
+        for i in range(num_repetitions):
+            shapes_graph = None
+            data_graph = None
+            shapes_graph_entailed = None
+            data_graph_entailed = None
+            shapes_graph = load_turtle_graph(shapes_graph_path)
+            data_graph = load_turtle_graph(data_graph_path)
+            start = time.time()
+            data_graph_entailed, shapes_graph_entailed = pre_process_shacl_graph_full(data_graph, shapes_graph, inference_lvl)
+            end = time.time()
+            total_time += end - start
+        avg_rewriting_time = round(total_time / num_repetitions * multiplier, 2)
+    elif method == 're-shacl':
+        for i in range(num_repetitions):
+            shapes_graph = None
+            data_graph = None
+            shapes_graph_entailed = None
+            data_graph_entailed = None
+            shapes_graph = load_turtle_graph(shapes_graph_path)
+            data_graph = load_turtle_graph(data_graph_path)
+            start = time.time()
+            data_graph_entailed, same_dic, shapes_graph_entailed = merged_graph(data_graph, shacl_graph=shapes_graph,
+                                                              data_graph_format='turtle',
+                                                              shacl_graph_format='turtle')
+            end = time.time()
+            total_time += end - start
+        avg_rewriting_time = round(total_time / num_repetitions * multiplier, 2)
+    elif method == 're-shacl+closed-shaper':
+
+        for i in range(num_repetitions):
+            shapes_graph = None
+            data_graph = None
+            shapes_graph_entailed = None
+            data_graph_entailed = None
+            shapes_graph = load_turtle_graph(shapes_graph_path)
+            data_graph = load_turtle_graph(data_graph_path)
+            start = time.time()
+            data_graph_entailed, shapes_graph_entailed = pre_process_shacl_graph_full(data_graph, shapes_graph, inference_lvl)
+            data_graph_entailed, same_dic, shapes_graph_entailed = merged_graph(data_graph_entailed, shacl_graph=shapes_graph_entailed,
+                                                              data_graph_format='turtle',
+                                                              shacl_graph_format='turtle')
+            end = time.time()
+            total_time += end - start
+
+        avg_rewriting_time = round(total_time / num_repetitions * multiplier, 2)
+    else:
+        data_graph_entailed = load_turtle_graph(data_graph_path)
+        shapes_graph_entailed = load_turtle_graph(shapes_graph_path)
+        avg_rewriting_time = 0
+
+    total_time = 0
+    if method == 're-shacl' or method == 're-shacl+closed-shaper':
+        for i in range(num_repetitions):
+            start = time.time()
+            conforms, validation_graph, validation_text = validate(data_graph_entailed, shacl_graph=shapes_graph_entailed,
+                                                 data_graph_format='turtle',
+                                                 shacl_graph_format='turtle',
+                                                 inference='none')
+            end = time.time()
+            total_time += end - start
+    else:
+        if inference_lvl == 'owl-ld':
+            inference_lvl = 'owlrl'
+        for i in range(num_repetitions):
+            start = time.time()
+            conforms, validation_graph, validation_text = validate(data_graph_entailed, shacl_graph=shapes_graph_entailed,
+                                                 data_graph_format='turtle',
+                                                 shacl_graph_format='turtle',
+                                                 inference=inference_lvl)
+            end = time.time()
+            total_time += end - start
+
+    avg_validation_time = round(total_time / num_repetitions * multiplier, 2)
+
+    return avg_rewriting_time, avg_validation_time, len(list(validation_graph.triples((None, SH.result, None))))
 
 
 def average_timed_validation_error_bars(data_graph_path, shapes_graph_path, inference_lvl='none', method='none'):
     """Calculate average validation runtime with confidence intervals."""
-    pipeline = ValidationPipeline()
-    config = pipeline.config
-    
+    num_repetitions = DEFAULT_NUM_REPETITIONS
     timed_runs = []
-    
-    for _ in range(config.num_repetitions):
-        preprocessing_time, data_graph_entailed, shapes_graph_entailed = pipeline._run_single_preprocessing(
-            data_graph_path, shapes_graph_path, method, inference_lvl
-        )
-        
-        # Determine inference level for validation
-        validation_inference = inference_lvl
-        if method in ['re-shacl', 're-shacl+closed-shaper']:
-            validation_inference = 'none'
-        elif validation_inference == 'owl-ld':
-            validation_inference = 'owlrl'
-        
-        validation_time, validation_graph = pipeline._run_single_validation(
-            data_graph_entailed, shapes_graph_entailed, validation_inference
-        )
-        
-        timed_runs.append(preprocessing_time + validation_time)
-    
-    avg_validation_time = round(sum(timed_runs) / config.num_repetitions, 2)
-    interval = st.t.interval(config.confidence_level, len(timed_runs) - 1, 
-                            loc=np.mean(timed_runs), scale=st.sem(timed_runs))
-    
+    if method == 'closed-shaper':
+        for i in range(num_repetitions):
+            shapes_graph = None
+            data_graph = None
+            shapes_graph_entailed = None
+            data_graph_entailed = None
+            shapes_graph = load_turtle_graph(shapes_graph_path)
+            data_graph = load_turtle_graph(data_graph_path)
+            start = time.time()
+            data_graph_entailed, shapes_graph_entailed = pre_process_shacl_graph_full(data_graph, shapes_graph, inference_lvl)
+            conforms, validation_graph, validation_text = validate(data_graph_entailed, shacl_graph=shapes_graph_entailed,
+                                                 data_graph_format='turtle',
+                                                 shacl_graph_format='turtle',
+                                                 inference=inference_lvl)
+
+            end = time.time()
+            timed_runs.append((end - start))
+
+        avg_rewriting_time = round((end - start) / num_repetitions, 2)
+
+    else:
+        avg_rewriting_time = 0
+        for i in range(num_repetitions):
+            shapes_graph = None
+            data_graph = None
+            shapes_graph = load_turtle_graph(shapes_graph_path)
+            data_graph = load_turtle_graph(data_graph_path)
+            start = time.time()
+            conforms, validation_graph, validation_text = validate(data_graph, shacl_graph=shapes_graph,
+                                                 data_graph_format='turtle',
+                                                 shacl_graph_format='turtle',
+                                                 inference=inference_lvl)
+            end = time.time()
+            timed_runs.append((end - start))
+
+    avg_validation_time = round(sum(timed_runs) / num_repetitions, 2)
+    interval = st.t.interval(CONFIDENCE_LEVEL, len(timed_runs) - 1, loc=np.mean(timed_runs), scale=st.sem(timed_runs))
     logger.info(f"results for method: {method} and regime: {inference_lvl}")
     logger.info([avg_validation_time, interval[0], interval[1]])
 
