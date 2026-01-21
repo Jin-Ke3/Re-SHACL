@@ -1,0 +1,17 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix schema1: <http://schema.org/> .
+
+schema1:Bob schema1:Name "Bob" ;
+    schema1:firstName "Bob" .
+
+schema1:Name owl:sameAs schema1:firstName .
+
+schema1:ali owl:sameAs schema1:Alice .
+
+schema1:Alice schema1:firstName "Alice" ;
+    owl:sameAs schema1:Alice,
+        schema1:ali .
+
+schema1:firstName owl:sameAs schema1:Name,
+        schema1:firstName .
+

@@ -1,0 +1,95 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ub: <http://swat.cse.lehigh.edu/onto/univ-bench.owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ub:FullProfessorShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path ub:researchInterest ],
+        [ sh:maxCount 2 ;
+            sh:minCount 1 ;
+            sh:node ub:Course ;
+            sh:path ub:teacherOf ],
+        [ sh:minCount 1 ;
+            sh:path ub:telephone ],
+        [ sh:minCount 1 ;
+            sh:node ub:UniversityShape ;
+            sh:path ub:undergraduateDegreeFrom ],
+        [ sh:minCount 1 ;
+            sh:node ub:DepartmentShape ;
+            sh:path ub:worksFor ],
+        [ sh:minCount 1 ;
+            sh:node ub:UniversityShape ;
+            sh:path ub:doctoralDegreeFrom ],
+        [ sh:minCount 1 ;
+            sh:path ub:emailAddress ],
+        [ sh:maxCount 1 ;
+            sh:node ub:DepartmentShape ;
+            sh:path ub:headOf ],
+        [ sh:minCount 1 ;
+            sh:node ub:UniversityShape ;
+            sh:path ub:mastersDegreeFrom ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ] ;
+    sh:targetClass ub:FullProfessor .
+
+ub:PublicationShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ],
+        [ sh:maxCount 7 ;
+            sh:minCount 1 ;
+            sh:path ub:publicationAuthor ] ;
+    sh:targetClass ub:Publication .
+
+ub:ResearchGroupShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:node ub:DepartmentShape ;
+            sh:path ub:subOrganizationOf ] ;
+    sh:targetClass ub:ResearchGroup .
+
+ub:UndergraduateStudentShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:path ub:advisor ],
+        [ sh:minCount 1 ;
+            sh:path ub:emailAddress ],
+        [ sh:minCount 1 ;
+            sh:node ub:DepartmentShape ;
+            sh:path ub:memberOf ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ],
+        [ sh:maxCount 4 ;
+            sh:minCount 2 ;
+            sh:node ub:CourseShape ;
+            sh:path ub:takesCourse ],
+        [ sh:minCount 1 ;
+            sh:path ub:telephone ] ;
+    sh:targetClass ub:UndergraduateStudent .
+
+ub:CourseShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ],
+        [ sh:minCount 1 ;
+            sh:path ub:type ;
+            sh:value ub:Course ] ;
+    sh:targetClass ub:Course .
+
+ub:DepartmentShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:node ub:UniversityShape ;
+            sh:path ub:subOrganizationOf ] ;
+    sh:targetClass ub:Department .
+
+ub:UniversityShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ub:name ] ;
+    sh:targetClass ub:University .
+

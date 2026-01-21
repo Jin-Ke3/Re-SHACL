@@ -1,0 +1,16 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <http://schema.org/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#>.
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+schema:ClosedShapeExampleShape
+	a sh:NodeShape ;
+	sh:targetNode schema:Alice, schema:Bob ;
+	sh:closed true ;
+	sh:ignoredProperties (rdf:type) ;
+	sh:property [
+		sh:path schema:firstName ;
+        sh:minCount 1 ;
+	] .
