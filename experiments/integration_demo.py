@@ -1,3 +1,14 @@
+"""Integration Demo for Re-SHACL Validation
+
+This script demonstrates the integration between Re-SHACL preprocessing and standard
+SHACL validation. It shows how merged graphs from Re-SHACL are validated and how
+the preprocessing affects the validation results.
+
+The demo validates a sample Person shape against test data using both:
+1. Standard SHACL validation
+2. Re-SHACL merged graph validation
+"""
+
 from rdflib import Graph, Namespace, RDF, URIRef
 from pyshacl import validate
 import time

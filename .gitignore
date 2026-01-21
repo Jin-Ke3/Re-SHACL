@@ -4,3 +4,6 @@
 /PreSHACL/plots
 source/ShapesGraphs/lubm/.DS_Store
 .DS_Store
+/pre_shacl/__pycache__
+/PreSHACL/__pycache__
+/tests/__pycache__

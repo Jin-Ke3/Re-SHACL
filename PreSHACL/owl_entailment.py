@@ -1,11 +1,51 @@
-from rdflib import RDF, RDFS, OWL
+"""OWL Entailment Engine
+
+This module implements OWL (Web Ontology Language) entailment rules for RDF graphs.
+
+Supported OWL rules:
+- sameAs: Symmetric, transitive, and property copying
+- equivalentProperty: Conversion to subPropertyOf relations
+- subPropertyOf: Transitive closure and equivalence detection
+- domain: Type inference and inheritance
+- range: Type inference and inheritance
+- subClassOf: Transitive closure and equivalence detection
+- equivalentClass: Conversion to subClassOf relations
+- Class inheritance: Type propagation through class hierarchy
+"""
+
+import logging
+from rdflib import RDF, RDFS, OWL, Graph
+
+logger = logging.getLogger(__name__)
 
 
-def entail(data_graph):
+def entail(data_graph: Graph, max_iterations: int = 1000) -> None:
+    """
+    Apply OWL entailment rules to an RDF graph in place.
+    
+    This function iteratively applies OWL inference rules until a fixpoint
+    is reached (no new triples can be inferred). The graph is modified in place.
+    
+    Args:
+        data_graph: An rdflib Graph to be entailed. Modified in place.
+        max_iterations: Maximum number of iterations to prevent infinite loops (default: 1000).
+    
+    Raises:
+        RuntimeWarning: If max_iterations is reached before fixpoint.
+    
+    Example:
+        >>> from rdflib import Graph
+        >>> g = Graph()
+        >>> g.parse("data.ttl")
+        >>> entail(g)
+        >>> print(f"Inferred {len(g)} total triples")
+    """
     changes = True
     inferred_triples = set()
     data_graph_size = len(data_graph)
-    while changes:
+    iteration = 0
+    
+    while changes and iteration < max_iterations:
         for s, _, o in data_graph.triples((None, OWL.sameAs, None)):
             # Symmetric sameAs
             if not o == s:
@@ -93,57 +133,8 @@ def entail(data_graph):
             data_graph.add((s, p, o))
 
         inferred_triples = set()
-
-
-
-
-# def check_inconsistencies(data_graph):
-#     error_messages = []
-#
-#     # CLS-NOTHING2
-#     for entity, _, _ in data_graph.triples((None, RDF.type, OWL.Nothing)):
-#         error_messages.append(f"{entity} cannot be of type {OWL.Nothing}")
-#
-#     # CAX-DW
-#     for class1, _, class2 in data_graph.triples((None, OWL.disjointWith, None)):
-#         class1_entities = set(data_graph.subjects(predicate=RDF.type, object=class1))
-#         class2_entities = set(data_graph.subjects(predicate=RDF.type, object=class2))
-#         common_entities = class1_entities.intersection(class2_entities)
-#         for entity in common_entities:
-#             error_messages.append(f"{entity} cannot be in two disjoint classes {class1} and {class2}")
-#
-#     # PRP-PDW
-#     for property1, _, property2 in data_graph.triples((None, OWL.propertyDisjointWith, None)):
-#         property1_entities = set(data_graph.subject_objects(predicate=property1))
-#         property2_entities = set(data_graph.subject_objects(predicate=property2))
-#         common_entities = property1_entities.intersection(property2_entities)
-#         for entity1, entity2 in common_entities:
-#             error_messages.append(f"{property1} and {property2} are disjoint properties "
-#                                   f"and cannot connect the same entities")
-#
-#     # PRP-IRP
-#     for property1, _, _ in data_graph.triples((None, RDF.type, OWL.IrreflexiveProperty)):
-#         for entity1, _, entity2 in data_graph.triples((None, property1, None)):
-#             if entity1 == entity2:
-#                 error_messages.append(f"{property1} is an irreflexive property. "
-#                                       f"It cannot be used to connect {entity1} and {entity2}")
-#
-#     # PRP-ASYP
-#     for property1, _, _ in data_graph.triples((None, RDF.type, OWL.AsymmetricProperty)):
-#         property_entities = set(data_graph.subject_objects(property1))
-#         inverse_property_entities = [(y, x) for x, y in property_entities if x != y]
-#         common_entities = property_entities.intersection(inverse_property_entities)
-#         for entity1, entity2 in common_entities:
-#             error_messages.append(f"{property1} is an asymmetric property. "
-#                                   f"It cannot be used to connect {entity1} and {entity2}")
-#
-#     # EQ-DIFF1
-#     same_as_entities = set(data_graph.subject_objects(OWL.sameAs))
-#     different_from_entities = set(data_graph.subject_objects(OWL.differentFrom))
-#     different_from_reversed_entities = [(y, x) for x, y in different_from_entities]
-#     common_entities = same_as_entities.intersection(different_from_entities) \
-#         .union(same_as_entities.intersection(different_from_reversed_entities))
-#     for entity1, entity2 in common_entities:
-#         error_messages.append(f"{entity1} and {entity2} cannot be both sameAs and differentFrom")
-#
-#     return error_messages
+        iteration += 1
+    
+    if iteration >= max_iterations:
+        logger.warning(f"OWL entailment reached max_iterations ({max_iterations}). "
+                      f"Fixpoint may not have been reached.")

@@ -1,275 +1,39 @@
-# 3 Shapes Graphs
+"""SHACL Shape Graphs and Data Graphs for Testing
 
-SG_1 = '''
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+This module contains predefined RDF graphs in Turtle format used for
+SHACL validation testing and experiments.
 
-schema:PersonShape
-    a sh:NodeShape ;
-    sh:targetClass schema:Person ;
-    sh:property [
-        sh:path schema:name ;
-        sh:datatype xsd:string ;
-        sh:name "given name" ;
-    ] ;
-    sh:property [
-        sh:path schema:birthDate ;
-        sh:lessThan schema:deathDate ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path schema:gender ;
-        sh:in ( "female" "male" ) ;
-        sh:minCount 1 ;
-    ] ;
-    sh:property [
-        sh:path schema:address ;
-        sh:node schema:AddressShape ;
-    ] .   
+Shape Graphs:
+- PERSON_SHAPE_OPEN (SG_1): Person shape without closed constraint
+- PERSON_SHAPE_CLOSED (SG_2): Person shape with closed constraint and ignoredProperties
+- CLOSED_SHAPE_EXAMPLE (SG_3): Minimal closed shape example for testing
 
-schema:AddressShape
-    a sh:NodeShape ;
-    sh:property [
-        sh:path schema:streetAddress ;
-        sh:datatype xsd:string ;
-    ] ;
-    sh:property [
-        sh:path schema:postalCode ;
-        sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] ) ;
-        sh:minInclusive 10000 ;
-        sh:maxInclusive 99999 ;
-    ] .
-'''
+Data Graphs:
+- PERSON_DATA_BASIC (DG_1): Basic person data without type annotations
+- PERSON_DATA_WITH_TYPES (DG_2): Person data with explicit type annotations
+- PERSON_DATA_WITH_EQUIVALENCES (DG_3): Person data with additional equivalences
+- MINIMAL_TEST_DATA (DG_4): Minimal test case with sameAs and equivalent properties
+"""
 
-SG_2 = '''
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-schema:PersonShape
-    a sh:NodeShape ;
-    sh:targetClass schema:Person ;
-    sh:closed true ;
-	sh:ignoredProperties (rdf:type) ;
-    sh:property [
-        sh:path schema:name ;
-        sh:datatype xsd:string ;
-        sh:name "given name" ;
-    ] ;
-    sh:property [
-        sh:path schema:birthDate ;
-        sh:lessThan schema:deathDate ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path schema:gender ;
-        sh:in ( "female" "male" ) ;
-        sh:minCount 1 ;
-    ] ;
-    sh:property [
-        sh:path schema:address ;
-        sh:node schema:AddressShape ;
-    ] .   
-
-schema:AddressShape
-    a sh:NodeShape ;
-    sh:property [
-        sh:path schema:streetAddress ;
-        sh:datatype xsd:string ;
-    ] ;
-    sh:property [
-        sh:path schema:postalCode ;
-        sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] ) ;
-        sh:minInclusive 10000 ;
-        sh:maxInclusive 99999 ;
-    ] .
-'''
+from pathlib import Path
 
 
-SG_3 = '''
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-schema:ClosedShapeExampleShape
-	a sh:NodeShape ;
-	sh:targetNode schema:Alice, schema:Bob ;
-	sh:closed true ;
-	sh:ignoredProperties (rdf:type) ;
-	sh:property [
-		sh:path schema:firstName ;
-        sh:minCount 1 ;
-	] .
-'''
-
-# 4 Data Graphs
-
-DG_1 = '''
-@prefix : <http://example.org/ns#> .
-@prefix dash: <http://datashapes.org/dash#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-:alice schema:nn "Alice";
-       schema:gender "female".
-
-:Alice schema:name "Alice".
-       
-schema:name owl:sameAs schema:Name.
-
-schema:nn owl:sameAs schema:name;
-          a owl:InverseFunctionalProperty.
-
-:ali schema:address [ schema:streetAddress "1600 Amphitheatre Pkway"; schema:zipCode 94004] ;
-     owl:sameAs :alice.   
-     
-schema:postalCode owl:equivalentProperty schema:zipCode.   
-     
-:simon schema:knows :alice.
-
-schema:TL rdfs:subClassOf schema:Person.
-
-schema:Student rdfs:subClassOf schema:TL.
-
-schema:knows rdfs:domain schema:Student;
-             rdfs:range schema:Student.
-
-:math a schema:Course;
-      schema:name "Math".
-      
-:SC a schema:Department;
-    schema:name "Computer Science".
-    
-:Math owl:sameAs :math.
-
-'''
+# Helper function to load Turtle files
+def _load_fixture(filename: str) -> str:
+    """Load a Turtle file from the fixtures directory."""
+    fixtures_dir = Path(__file__).parent / 'fixtures'
+    file_path = fixtures_dir / filename
+    return file_path.read_text(encoding='utf-8')
 
 
-DG_2 = '''
-@prefix : <http://example.org/ns#> .
-@prefix dash: <http://datashapes.org/dash#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+# Shape Graphs
+PERSON_SHAPE_OPEN = _load_fixture('person_shape_open.ttl')
+PERSON_SHAPE_CLOSED = _load_fixture('person_shape_closed.ttl')
+CLOSED_SHAPE_EXAMPLE = _load_fixture('closed_shape_example.ttl')
 
-:alice schema:nn "Alice";
-       schema:gender "female".
-
-:Alice a schema:Person;
-       schema:name "Alice".
-       
-schema:name owl:sameAs schema:Name.
-
-schema:nn owl:sameAs schema:name;
-          a owl:InverseFunctionalProperty.
-
-:ali schema:address [ schema:streetAddress "1600 Amphitheatre Pkway"; schema:zipCode 94004] ;
-     owl:sameAs :alice.   
-     
-schema:postalCode owl:equivalentProperty schema:zipCode.   
-     
-:simon schema:knows :alice;
-       schema:gender "male".
-
-schema:TL rdfs:subClassOf schema:Person.
-
-schema:Student rdfs:subClassOf schema:TL.
-
-schema:knows rdfs:domain schema:Student;
-             rdfs:range schema:Student.
-
-:math a schema:Course;
-      schema:name "Math".
-      
-:SC a schema:Department;
-    schema:name "Computer Science".
-    
-:Math owl:sameAs :math.
-
-'''
-
-
-DG_3 = '''
-@prefix : <http://example.org/ns#> .
-@prefix dash: <http://datashapes.org/dash#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-:alice schema:nn "Alice";
-       schema:gender "female".
-
-:Alice schema:name "Alice".
-       
-schema:name owl:sameAs schema:Name.
-
-schema:nn owl:sameAs schema:name;
-          a owl:InverseFunctionalProperty.
-
-:ali schema:address [ schema:streetAddress "1600 Amphitheatre Pkway"; schema:zipCode 94004] ;
-     owl:sameAs :alice.   
-     
-schema:postalCode owl:equivalentProperty schema:zipCode.   
-     
-:simon schema:knows :alice.
-
-:semon owl:sameAs :simon.
-
-schema:TL rdfs:subClassOf schema:Person.
-
-schema:Student rdfs:subClassOf schema:TL.
-
-schema:knows rdfs:domain schema:Student;
-             rdfs:range schema:Student.
-
-:math a schema:Course;
-      schema:name "Math".
-      
-:SC a schema:Department;
-    schema:name "Computer Science".
-    
-:Math owl:sameAs :math.
-
-'''
-
-
-
-DG_4 = '''
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix schema: <http://schema.org/> .
-@prefix owl: <http://www.w3.org/2002/07/owl#>. 
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-schema:Alice
-	schema:firstName "Alice" .
- 
-schema:ali owl:sameAs schema:Alice.
-
-schema:Bob
-	schema:Name "Bob" .
- 
-schema:Name owl:sameAs schema:firstName.
-'''
+# Data Graphs
+PERSON_DATA_BASIC = _load_fixture('person_data_basic.ttl')
+PERSON_DATA_WITH_TYPES = _load_fixture('person_data_with_types.ttl')
+PERSON_DATA_WITH_EQUIVALENCES = _load_fixture('person_data_with_equivalences.ttl')
+MINIMAL_TEST_DATA = _load_fixture('minimal_test_data.ttl')
 

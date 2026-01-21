@@ -1,7 +1,6 @@
 from typing import Optional, Union
 from enum import Enum
-import rdfs_entailment
-import owl_entailment
+from pre_shacl import rdfs_entailment, owl_entailment
 from rdflib import Graph
 
 

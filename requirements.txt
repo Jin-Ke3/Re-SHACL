@@ -3,3 +3,4 @@ owlrl==6.0.2
 prettytable==2.5.0
 pyshacl==0.23.0
 rdflib==7.0.0
+pytest==7.4.3
