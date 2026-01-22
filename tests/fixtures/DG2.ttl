@@ -1,0 +1,15 @@
+@prefix : <http://www.example.com#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+:Bob a :Person ;
+    :age "18" ;
+    :likes :Alice .
+
+:Alice a :Person;
+    :age "19" ;
+    owl:sameAs :alice, :alicia, :al .
+
+:age rdfs:subPropertyOf :yearsOld .
+
+:likes rdfs:subPropertyOf :knows .

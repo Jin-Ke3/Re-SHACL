@@ -112,10 +112,10 @@ def pre_process_shacl_graph_full(shacl_graph: Graph, ontology_graph: Graph, regi
     if regime == InferenceLevel.OWL_LD.value:
         ignored_properties.add(OWL.sameAs)
 
-    # Precompute property closure from ontology
+    # Precompute property closure and equivalences from ontology
     logger.info(f"Computing property closure from ontology for regime '{regime}'")
-    subprop_closure = compute_subproperty_closure(ontology_graph)
-    logger.info(f"Computed closure for {len(subprop_closure)} properties")
+    subprop_closure, equivalent_props = compute_subproperty_closure(ontology_graph, inference=regime)
+    logger.info(f"Computed closure for {len(subprop_closure)} properties, {len(equivalent_props)} with equivalences")
 
     shape_names = list_all_shape_names(shacl_graph)
     shape_with_properties = map_shapes_to_properties(shacl_graph, shape_names)
@@ -130,7 +130,7 @@ def pre_process_shacl_graph_full(shacl_graph: Graph, ontology_graph: Graph, regi
         warning_messages += check_incongruences(shape_uri, ontology_graph, shacl_graph, shape_property_paths[shape_uri])
         shacl_graph = extend_shacl_shape_from_ontology(shape_uri, shape_with_properties[shape_uri], shacl_graph,
                                                        shape_property_paths[shape_uri], ontology_graph, regime, 
-                                                       old_ignored_properties, subprop_closure)
+                                                       old_ignored_properties, subprop_closure, equivalent_props)
 
         ignored_properties = set(ignored_properties).union(set(old_ignored_properties))
         ignored_properties = set([x for x in ignored_properties if x not in shape_property_paths[shape_uri]])

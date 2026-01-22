@@ -121,10 +121,11 @@ def entail_shape_from_ontology(
     shape: URIRef,
     regime: str,
     old_ignored_properties: Set[URIRef],
-    subprop_closure: Dict[URIRef, Set[URIRef]]
+    subprop_closure: Dict[URIRef, Set[URIRef]],
+    equivalent_props: Dict[URIRef, Set[URIRef]]
 ) -> Tuple[Graph, Set[URIRef]]:
     """
-    Extend shape with sub-properties from ontology closure.
+    Extend shape with TRUE sub-properties from ontology closure (excluding equivalents).
     
     Args:
         ontology_graph: The ontology (not used if subprop_closure provided)
@@ -135,6 +136,7 @@ def entail_shape_from_ontology(
         regime: Inference regime (rdfs, owl-ld, owlrl)
         old_ignored_properties: Properties to skip
         subprop_closure: Precomputed closure from compute_subproperty_closure()
+        equivalent_props: Properties related by owl:equivalentProperty or owl:sameAs
     
     Returns:
         Tuple of (modified shacl_graph, updated shape_properties set)
@@ -143,9 +145,9 @@ def entail_shape_from_ontology(
     1. Get property path `p` from property_shape
     2. Look up subprops[p] from closure
     3. For each q in subprops[p]:
+         - SKIP if q is in equivalent_props[p] (handled by copy function)
          - If q not in shape_properties and q not in old_ignored_properties:
            - Create blank node with ONLY sh:path = q
-           - Mark as generated (ex:generatedBy "ontology_entailer")
            - Add to shape
     """
     property_shape_path = shacl_graph.value(property_shape, SH.path)
@@ -156,8 +158,15 @@ def entail_shape_from_ontology(
     # Get sub-properties from precomputed closure
     subprops = subprop_closure.get(property_shape_path, set())
     
+    # Get equivalents to EXCLUDE from subprop handling
+    equivalents = equivalent_props.get(property_shape_path, set())
+    
     # Sort for stable iteration order (deterministic output)
     for sub_prop in sorted(subprops, key=str):
+        # SKIP if it's an equivalent (will be handled by copy_property_shapes_for_equivalents)
+        if sub_prop in equivalents:
+            continue
+        
         # Check if the new property is not already in the shape properties
         if sub_prop not in shape_properties and sub_prop not in old_ignored_properties:
             # Create a new property shape (path-only)
@@ -165,11 +174,74 @@ def entail_shape_from_ontology(
             shacl_graph.add((shape, SH.property, property_node))
             # Add ONLY the path
             shacl_graph.add((property_node, SH.path, sub_prop))
-            # Mark as generated
-            mark_generated_node(shacl_graph, property_node)
             
             shape_properties.add(sub_prop)
             logger.info(f"Added new property path {sub_prop} (sub-property of {property_shape_path})")
+    
+    return shacl_graph, shape_properties
+
+
+def copy_property_shapes_for_equivalents(
+    shacl_graph: Graph,
+    shape_properties: Set[URIRef],
+    property_shape: URIRef,
+    shape: URIRef,
+    old_ignored_properties: Set[URIRef],
+    equivalent_props: Dict[URIRef, Set[URIRef]]
+) -> Tuple[Graph, Set[URIRef]]:
+    """
+    Copy entire property shape for owl:equivalentProperty and owl:sameAs properties.
+    
+    Unlike subproperties (which only add sh:path), owl:equivalentProperty and owl:sameAs
+    mean the properties are identical/equivalent, so we copy the ENTIRE property shape
+    with all constraints (minCount, maxCount, datatype, etc.).
+    
+    Args:
+        shacl_graph: The SHACL shapes graph (modified in place)
+        shape_properties: Current allowed property paths
+        property_shape: Existing property shape blank node
+        shape: Shape URI being extended
+        old_ignored_properties: Properties to skip
+        equivalent_props: Direct equivalence mapping from compute_subproperty_closure
+    
+    Returns:
+        Tuple of (modified shacl_graph, updated shape_properties set)
+    
+    Logic:
+    1. Get property path `p` from property_shape
+    2. Look up equivalent_props[p]
+    3. For each q in equivalent_props[p]:
+         - If q not in shape_properties and q not in old_ignored_properties:
+           - Create a new blank node
+           - Copy ALL constraints from property_shape (except sh:path)
+           - Set sh:path to q
+           - Add to shape
+    """
+    property_shape_path = shacl_graph.value(property_shape, SH.path)
+    
+    if not property_shape_path or not isinstance(property_shape_path, URIRef):
+        return shacl_graph, shape_properties
+    
+    # Find all properties that are equivalent to this property
+    equivalents = equivalent_props.get(property_shape_path, set())
+    
+    # For each equivalent property, copy the entire property shape
+    for equiv_prop in sorted(equivalents, key=str):
+        if equiv_prop not in shape_properties and equiv_prop not in old_ignored_properties:
+            # Create new property shape node
+            new_property_node = BNode()
+            shacl_graph.add((shape, SH.property, new_property_node))
+            
+            # Copy ALL predicates from original property shape, EXCEPT sh:path
+            for pred, obj in shacl_graph.predicate_objects(property_shape):
+                if pred != SH.path:
+                    shacl_graph.add((new_property_node, pred, obj))
+            
+            # Set the new sh:path
+            shacl_graph.add((new_property_node, SH.path, equiv_prop))
+            
+            shape_properties.add(equiv_prop)
+            logger.info(f"Copied property shape for {equiv_prop} (equivalent to {property_shape_path})")
     
     return shacl_graph, shape_properties
 
@@ -223,8 +295,6 @@ def entail_has_value_from_ontology(
                 property_node = BNode()
                 shacl_graph.add((shape, SH.property, property_node))
                 shacl_graph.add((property_node, SH.path, on_property_value))
-                # Mark as generated
-                mark_generated_node(shacl_graph, property_node)
                 
                 shape_properties.add(on_property_value)
                 logger.info(f"Added new property path {on_property_value} (from hasValue restriction)")
@@ -240,7 +310,8 @@ def extend_shacl_shape_from_ontology(
     ontology_graph: Graph,
     regime: str,
     old_ignored_properties: Set[URIRef],
-    subprop_closure: Dict[URIRef, Set[URIRef]]
+    subprop_closure: Dict[URIRef, Set[URIRef]],
+    equivalent_props: Dict[URIRef, Set[URIRef]]
 ) -> Graph:
     """
     Main orchestrator for shape extension using ontology.
@@ -249,7 +320,8 @@ def extend_shacl_shape_from_ontology(
     
     Logic:
     1. For each existing property shape:
-         - Call entail_shape_from_ontology() with precomputed closure
+         - Call copy_property_shapes_for_equivalents() to copy full shapes for equivalents
+         - Call entail_shape_from_ontology() with precomputed closure for true subproperties
     2. If regime == "owlrl":
          - Call entail_has_value_from_ontology()
     
@@ -262,19 +334,27 @@ def extend_shacl_shape_from_ontology(
         regime: The inference regime
         old_ignored_properties: Previously ignored properties
         subprop_closure: Precomputed closure from compute_subproperty_closure()
+        equivalent_props: Direct equivalence mapping from compute_subproperty_closure()
         
     Returns:
         The modified SHACL graph
     """
-    # Extend based on subPropertyOf relationships
+    # First: Copy full property shapes for equivalent/sameAs properties
+    for property_shape in property_blank_nodes:
+        shacl_graph, shape_properties = copy_property_shapes_for_equivalents(
+            shacl_graph, shape_properties, property_shape, shape,
+            old_ignored_properties, equivalent_props
+        )
+    
+    # Second: Add path-only shapes for true subproperties (excluding equivalents)
     for property_shape in property_blank_nodes:
         shacl_graph, shape_properties = entail_shape_from_ontology(
             ontology_graph, shacl_graph, shape_properties,
             property_shape, shape, regime, old_ignored_properties,
-            subprop_closure
+            subprop_closure, equivalent_props
         )
 
-    # Only in case of owlrl, add hasValue-based properties
+    # Third: Only in case of owlrl, add hasValue-based properties
     if regime == InferenceLevel.OWLRL.value:
         shacl_graph, shape_properties = entail_has_value_from_ontology(
             ontology_graph, shape, shacl_graph, shape_properties
