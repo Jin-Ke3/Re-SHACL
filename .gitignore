@@ -8,3 +8,6 @@ source/ShapesGraphs/lubm/.DS_Store
 /PreSHACL/__pycache__
 /tests/__pycache__
 /__pycache__
+*.pyc
+*.pyc
+/ReSHACL/__pycache__

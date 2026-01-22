@@ -22,6 +22,9 @@ from owlrl import DeductiveClosure, RDFS_Semantics, OWLRL_Semantics
 import os
 import json
 from pre_shacl.pre_processor import pre_process_shacl_graph_full
+from ReSHACL.re_shacl import merged_graph as merged_graph_owl
+from ReSHACL.re_shacl_rdfs import merged_graph as merged_graph_rdfs
+from ReSHACL.re_shacl import merged_graph
 
 # Dataset pairs: (data_graph, closed_shapes, display_name)
 DATASET_PAIRS = [
@@ -31,8 +34,8 @@ DATASET_PAIRS = [
     ("tests/fixtures/minimal_test_data.ttl", "tests/fixtures/closed_shape_example.ttl", "SG4"),
 ]
 
-# Reasoning levels to test
-REASONING_LEVELS = ["none", "rdfs", "owl-ld"]
+# Reasoning levels to test (excluding 'none' as it provides no meaningful comparison)
+REASONING_LEVELS = ["rdfs", "owl-ld"]
 
 def load_graph(file_path):
     """Load a turtle file into an RDF graph"""
@@ -62,15 +65,27 @@ def count_violations(validation_report_graph):
     violation_count = len(list(validation_report_graph.triples((None, RDF.type, SH.ValidationResult))))
     return violation_count
 
-def approach1_reshacl_only(data_graph, shapes_graph):
-    """Approach 1: ReSHACL only (recursive validation)"""
-    # Note: Using standard pyshacl with advanced features instead of merged_graph
-    # to avoid potential infinite loops in recursive validation
-    conforms, report_graph, report_text = validate(
-        data_graph,
+def approach1_reshacl_only(data_graph, shapes_graph, reasoning_level):
+    """Approach 1: ReSHACL only with built-in reasoning"""
+    # Use appropriate ReSHACL module based on reasoning level
+    if reasoning_level == "rdfs":
+        merged_func = merged_graph_rdfs
+    else:  # owl-ld
+        merged_func = merged_graph_owl
+    
+    # ReSHACL's merged_graph merges owl:sameAs AND applies reasoning
+    fused_graph, same_dic, processed_shapes = merged_func(
+        data_graph, 
         shacl_graph=shapes_graph,
+        data_graph_format='turtle',
+        shacl_graph_format='turtle'
+    )
+    
+    # Validate WITHOUT additional inference (ReSHACL already did reasoning)
+    conforms, report_graph, report_text = validate(
+        fused_graph,
+        shacl_graph=processed_shapes,
         inference='none',
-        advanced=True,
         abort_on_first=False
     )
     violations = count_violations(report_graph)
@@ -79,49 +94,60 @@ def approach1_reshacl_only(data_graph, shapes_graph):
 
 def approach2_entailed_shapes_only(data_graph, shapes_graph, reasoning_level):
     """Approach 2: Our entailed shapes approach only"""
-    # Entail shapes based on reasoning level
-    if reasoning_level == "none":
-        entailed_shapes = shapes_graph  # No entailment needed
-    else:
-        # Use pre_process_shacl_graph_full to entail shapes from data graph
-        # Correct parameter order: (shacl_graph, ontology_graph, regime)
-        entailed_shapes = pre_process_shacl_graph_full(
-            shacl_graph=shapes_graph,
-            ontology_graph=data_graph,  # Use data graph as ontology source
-            regime=reasoning_level
-        )
+    original_size = len(data_graph)
     
-    # Validate with entailed shapes (no inference during validation)
+    # Step 1: Entail shapes from ORIGINAL data graph (no reasoning on data yet)
+    entailed_shapes = pre_process_shacl_graph_full(
+        shacl_graph=shapes_graph,
+        ontology_graph=data_graph,  # Use original data graph as ontology source
+        regime=reasoning_level
+    )
+    
+    # Step 2: Apply OWL RL reasoning to data graph
+    reasoned_data = apply_reasoning(data_graph, reasoning_level)
+    reasoned_size = len(reasoned_data)
+    
+    # Step 3: Validate REASONED data with entailed shapes (no additional inference)
+    # Reasoning already applied, so inference='none'
     conforms, report_graph, report_text = validate(
-        data_graph,
+        reasoned_data,
         shacl_graph=entailed_shapes,
         inference='none',
         abort_on_first=False
     )
     violations = count_violations(report_graph)
     
-    return conforms, violations, report_graph, entailed_shapes
+    return conforms, violations, report_graph, entailed_shapes, original_size, reasoned_size
 
 def approach3_combined(data_graph, shapes_graph, reasoning_level):
-    """Approach 3: Combined - Entailed shapes + ReSHACL"""
-    # First, entail shapes based on reasoning level
-    if reasoning_level == "none":
-        entailed_shapes = shapes_graph  # No entailment needed
-    else:
-        # Use pre_process_shacl_graph_full to entail shapes from data graph
-        # Correct parameter order: (shacl_graph, ontology_graph, regime)
-        entailed_shapes = pre_process_shacl_graph_full(
-            shacl_graph=shapes_graph,
-            ontology_graph=data_graph,  # Use data graph as ontology source
-            regime=reasoning_level
-        )
+    """Approach 3: Combined - ReSHACL FIRST (to merge data), then entail shapes from merged data"""
+    # FIRST: Use ReSHACL to merge owl:sameAs and apply reasoning
+    if reasoning_level == "rdfs":
+        merged_func = merged_graph_rdfs
+    else:  # owl-ld
+        merged_func = merged_graph_owl
     
-    # Then validate with entailed shapes using advanced features
+    # ReSHACL merges owl:sameAs + applies reasoning
+    fused_graph, same_dic, _ = merged_func(
+        data_graph, 
+        shacl_graph=shapes_graph,  # Use original shapes for now
+        data_graph_format='turtle',
+        shacl_graph_format='turtle'
+    )
+    
+    # SECOND: Entail shapes from the MERGED/REASONED data (not original)
+    # This ensures the shapes match the data we'll actually validate
+    entailed_shapes = pre_process_shacl_graph_full(
+        shacl_graph=shapes_graph,
+        ontology_graph=fused_graph,  # Use fused graph as ontology source!
+        regime=reasoning_level
+    )
+    
+    # THIRD: Validate the fused graph with entailed shapes
     conforms, report_graph, report_text = validate(
-        data_graph,
+        fused_graph,
         shacl_graph=entailed_shapes,
-        inference='none',
-        advanced=True,
+        inference='none',  # No additional inference needed
         abort_on_first=False
     )
     violations = count_violations(report_graph)
@@ -138,9 +164,9 @@ def run_three_approach_comparison():
     
     # Store results for reporting
     results = {
-        "reshacl_only": {"none": [], "rdfs": [], "owl-ld": []},
-        "entailed_only": {"none": [], "rdfs": [], "owl-ld": []},
-        "combined": {"none": [], "rdfs": [], "owl-ld": []}
+        "reshacl_only": {"rdfs": [], "owl-ld": []},
+        "entailed_only": {"rdfs": [], "owl-ld": []},
+        "combined": {"rdfs": [], "owl-ld": []}
     }
     
     for data_graph_path, shapes_path, display_name in DATASET_PAIRS:
@@ -148,37 +174,31 @@ def run_three_approach_comparison():
         print(f"Processing: {display_name}")
         print(f"{'=' * 80}")
         
-        # Load data graph
-        print(f"\n1. Loading data graph: {data_graph_path}")
-        original_data_graph = load_graph(data_graph_path)
-        print(f"   Loaded {len(original_data_graph)} triples")
-        
-        # Load closed shapes
-        print(f"\n2. Loading closed shapes: {shapes_path}")
-        shapes_graph = load_graph(shapes_path)
-        print(f"   Loaded {len(shapes_graph)} triples")
-        
         # Process with different reasoning levels
         for reasoning_level in REASONING_LEVELS:
             print(f"\n{'=' * 60}")
             print(f"Reasoning Level: {reasoning_level.upper()}")
             print(f"{'=' * 60}")
             
-            # Apply reasoning to data graph
-            if reasoning_level == "none":
-                print(f"   No reasoning applied to data graph")
-                data_graph = original_data_graph
-            else:
-                print(f"   Applying {reasoning_level} reasoning to data graph...")
-                data_graph = apply_reasoning(original_data_graph, reasoning_level)
-                print(f"   Data graph: {len(original_data_graph)} -> {len(data_graph)} triples")
-            
-            # Approach 1: ReSHACL only
+            # Approach 1: ReSHACL only (with built-in reasoning)
             print(f"\n--- Approach 1: ReSHACL Only ---")
             try:
-                conforms, violations, report_graph = approach1_reshacl_only(data_graph, shapes_graph)
+                # Reload graphs fresh for each approach
+                print(f"Loading data graph: {data_graph_path}")
+                data_graph = load_graph(data_graph_path)
+                print(f"  Loaded {len(data_graph)} triples")
+                
+                print(f"Loading shapes graph: {shapes_path}")
+                shapes_graph = load_graph(shapes_path)
+                print(f"  Loaded {len(shapes_graph)} triples")
+                
+                # ReSHACL merges owl:sameAs AND applies reasoning (rdfs or owl-ld)
+                conforms, violations, report_graph = approach1_reshacl_only(
+                    data_graph, shapes_graph, reasoning_level
+                )
                 status = "[OK] CONFORMS" if conforms else "[X] VIOLATIONS"
                 print(f"    {status}: {violations} violations")
+                print(f"    (ReSHACL with {reasoning_level} reasoning built-in)")
                 results["reshacl_only"][reasoning_level].append(violations)
                 
                 # Save report
@@ -193,11 +213,22 @@ def run_three_approach_comparison():
             # Approach 2: Entailed shapes only
             print(f"\n--- Approach 2: Entailed Shapes Only ---")
             try:
-                conforms, violations, report_graph, entailed_shapes = approach2_entailed_shapes_only(
+                # Reload graphs fresh for each approach
+                print(f"Loading data graph: {data_graph_path}")
+                data_graph = load_graph(data_graph_path)
+                print(f"  Loaded {len(data_graph)} triples")
+                
+                print(f"Loading shapes graph: {shapes_path}")
+                shapes_graph = load_graph(shapes_path)
+                print(f"  Loaded {len(shapes_graph)} triples")
+                
+                # Use ORIGINAL data (not reasoned) - reasoning happens during validation
+                conforms, violations, report_graph, entailed_shapes, orig_size, reasoned_size = approach2_entailed_shapes_only(
                     data_graph, shapes_graph, reasoning_level
                 )
                 status = "[OK] CONFORMS" if conforms else "[X] VIOLATIONS"
                 print(f"    {status}: {violations} violations")
+                print(f"    Data graph: {orig_size} -> {reasoned_size} triples")
                 print(f"    Entailed shapes: {len(entailed_shapes)} triples")
                 results["entailed_only"][reasoning_level].append(violations)
                 
@@ -219,6 +250,16 @@ def run_three_approach_comparison():
             # Approach 3: Combined (Entailed shapes + ReSHACL)
             print(f"\n--- Approach 3: Combined (Entailed + ReSHACL) ---")
             try:
+                # Reload graphs fresh for each approach
+                print(f"Loading data graph: {data_graph_path}")
+                data_graph = load_graph(data_graph_path)
+                print(f"  Loaded {len(data_graph)} triples")
+                
+                print(f"Loading shapes graph: {shapes_path}")
+                shapes_graph = load_graph(shapes_path)
+                print(f"  Loaded {len(shapes_graph)} triples")
+                
+                # Combined approach: entail shapes FIRST, then use with ReSHACL
                 conforms, violations, report_graph = approach3_combined(
                     data_graph, shapes_graph, reasoning_level
                 )
