@@ -102,5 +102,30 @@ if __name__ == '__main__':
         ontology = get_input_from_user("ontology")
 
     method = get_selection_from_user("method", ['pyshacl', 'pyshacl-rdfs', 'pyshacl-owl', 'reshacl'])
+    
+    # Parse method to determine base method, inference, and pre_shacl flag
+    if method == 'pyshacl':
+        base_method = 'pyshacl'
+        inference_method = 'none'
+        pre_shacl = False
+    elif method == 'pyshacl-rdfs':
+        base_method = 'pyshacl'
+        inference_method = 'rdfs'
+        pre_shacl = True
+    elif method == 'pyshacl-owl':
+        base_method = 'pyshacl'
+        inference_method = 'owlrl'
+        pre_shacl = True
+    elif method == 'reshacl':
+        base_method = 'reshacl'
+        inference_method = 'none'
+        pre_shacl = False
+    else:
+        base_method = 'pyshacl'
+        inference_method = 'none'
+        pre_shacl = False
+    
     print(f"Running experiment {dataset_name} using method {method}")
-    run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method, ontology)
+    run_experiment(dataset_name, dataset_uri, shapes_graph_uri, 
+                   method=base_method, ontology=ontology, 
+                   inference_method=inference_method, pre_shacl=pre_shacl)

@@ -18,8 +18,8 @@ from typing import Tuple, Optional, List
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pre_shacl.pre_processor import *
-from PreSHACL import data
-from PreSHACL.data import *
+from tests import data
+from tests.data import *
 from rdflib import SH, XSD
 import pandas as pd
 from ReSHACL.re_shacl import merged_graph
@@ -52,18 +52,22 @@ class ValidationPipeline:
     
     def _load_graphs(self, 
                      data_graph_path: str, 
-                     shapes_graph_path: str) -> Tuple[rdflib.Graph, rdflib.Graph]:
-        """Load data and shapes graphs from files."""
+                     shapes_graph_path: str,
+                     ontology_path: Optional[str] = None) -> Tuple[rdflib.Graph, rdflib.Graph, Optional[rdflib.Graph]]:
+        """Load data, shapes, and optionally ontology graphs from files."""
         shapes_graph = load_turtle_graph(shapes_graph_path)
         data_graph = load_turtle_graph(data_graph_path)
-        return data_graph, shapes_graph
+        ontology_graph = None
+        if ontology_path:
+            ontology_graph = load_owl_graph(ontology_path)
+        return data_graph, shapes_graph, ontology_graph
     
     def _preprocess_closed_shaper(self,
-                                   data_graph: rdflib.Graph,
                                    shapes_graph: rdflib.Graph,
-                                   inference_lvl: str) -> Tuple[rdflib.Graph, rdflib.Graph]:
-        """Apply Closed-Shaper preprocessing."""
-        return pre_process_shacl_graph_full(data_graph, shapes_graph, inference_lvl)
+                                   ontology_graph: rdflib.Graph,
+                                   inference_lvl: str) -> rdflib.Graph:
+        """Apply Closed-Shaper preprocessing using ontology."""
+        return pre_process_shacl_graph_full(shapes_graph, ontology_graph, inference_lvl)
     
     def _preprocess_reshacl(self,
                            data_graph: rdflib.Graph,
@@ -77,16 +81,18 @@ class ValidationPipeline:
     def _preprocess_combined(self,
                             data_graph: rdflib.Graph,
                             shapes_graph: rdflib.Graph,
+                            ontology_graph: rdflib.Graph,
                             inference_lvl: str) -> Tuple[rdflib.Graph, dict, rdflib.Graph]:
         """Apply combined Closed-Shaper + Re-SHACL preprocessing."""
-        data_graph_entailed, shapes_graph_entailed = self._preprocess_closed_shaper(
-            data_graph, shapes_graph, inference_lvl
+        shapes_graph_entailed = self._preprocess_closed_shaper(
+            shapes_graph, ontology_graph, inference_lvl
         )
-        return self._preprocess_reshacl(data_graph_entailed, shapes_graph_entailed)
+        return self._preprocess_reshacl(data_graph, shapes_graph_entailed)
     
     def _run_single_preprocessing(self,
                                   data_graph_path: str,
                                   shapes_graph_path: str,
+                                  ontology_path: Optional[str],
                                   method: str,
                                   inference_lvl: str) -> Tuple[float, rdflib.Graph, rdflib.Graph]:
         """
@@ -95,21 +101,24 @@ class ValidationPipeline:
         Returns:
             Tuple of (preprocessing_time, processed_data_graph, processed_shapes_graph).
         """
-        data_graph, shapes_graph = self._load_graphs(data_graph_path, shapes_graph_path)
+        data_graph, shapes_graph, ontology_graph = self._load_graphs(
+            data_graph_path, shapes_graph_path, ontology_path
+        )
         
         start = time.time()
         
         if method == 'closed-shaper':
-            data_graph_entailed, shapes_graph_entailed = self._preprocess_closed_shaper(
-                data_graph, shapes_graph, inference_lvl
+            shapes_graph_entailed = self._preprocess_closed_shaper(
+                shapes_graph, ontology_graph, inference_lvl
             )
+            data_graph_entailed = data_graph  # Data graph unchanged
         elif method == 're-shacl':
             data_graph_entailed, _, shapes_graph_entailed = self._preprocess_reshacl(
                 data_graph, shapes_graph
             )
         elif method == 're-shacl+closed-shaper':
             data_graph_entailed, _, shapes_graph_entailed = self._preprocess_combined(
-                data_graph, shapes_graph, inference_lvl
+                data_graph, shapes_graph, ontology_graph, inference_lvl
             )
         else:
             # No preprocessing
@@ -151,7 +160,7 @@ def timed_validation(data_graph, shapes_graph, inference_lvl='rdfs'):
     logger.info(f"{validation_time} seconds")
 
 
-def average_timed_validation(data_graph_path, shapes_graph_path, inference_lvl='none', method='none'):
+def average_timed_validation(data_graph_path, shapes_graph_path, ontology_path=None, inference_lvl='none', method='none'):
     """Calculate and return the average runtime of validations and the number of violations."""
     pipeline = ValidationPipeline()
     config = pipeline.config
@@ -160,7 +169,7 @@ def average_timed_validation(data_graph_path, shapes_graph_path, inference_lvl='
     total_preprocessing_time = 0.0
     for _ in range(config.num_repetitions):
         preprocessing_time, data_graph_entailed, shapes_graph_entailed = pipeline._run_single_preprocessing(
-            data_graph_path, shapes_graph_path, method, inference_lvl
+            data_graph_path, shapes_graph_path, ontology_path, method, inference_lvl
         )
         total_preprocessing_time += preprocessing_time
     
@@ -186,7 +195,7 @@ def average_timed_validation(data_graph_path, shapes_graph_path, inference_lvl='
     return avg_rewriting_time, avg_validation_time, num_violations
 
 
-def average_timed_validation_error_bars(data_graph_path, shapes_graph_path, inference_lvl='none', method='none'):
+def average_timed_validation_error_bars(data_graph_path, shapes_graph_path, ontology_path=None, inference_lvl='none', method='none'):
     """Calculate average validation runtime with confidence intervals."""
     pipeline = ValidationPipeline()
     config = pipeline.config
@@ -195,7 +204,7 @@ def average_timed_validation_error_bars(data_graph_path, shapes_graph_path, infe
     
     for _ in range(config.num_repetitions):
         preprocessing_time, data_graph_entailed, shapes_graph_entailed = pipeline._run_single_preprocessing(
-            data_graph_path, shapes_graph_path, method, inference_lvl
+            data_graph_path, shapes_graph_path, ontology_path, method, inference_lvl
         )
         
         # Determine inference level for validation

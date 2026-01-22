@@ -8,7 +8,7 @@ import numpy as np
 from ReSHACL.re_shacl import merged_graph
 import os
 import logging
-from PreSHACL.pre_processor import pre_process_shacl_graph_full
+from pre_shacl.pre_processor import pre_process_shacl_graph_full
 
 DBO = Namespace("http://dbpedia.org/ontology/")
 sys.path.insert(0, sys.path[0] + "/../")
@@ -30,10 +30,17 @@ def check_directory_exists_otherwise_create(directory):
                 print(f"Created folder: {folder_name}")
 
 
-def run_pyshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
+def run_pyshacl(dataset_name, g, sg, ontology_path, method, inference_method, pre_shacl=False):
     if pre_shacl:
-        # Because the graph has already been fully entailed
-        inference_method = 'none'
+        # Load ontology for shape preprocessing
+        ontology = Graph()
+        if ontology_path:
+            print("***** Loading ontology for shape preprocessing *****")
+            ontology.parse(ontology_path, format="xml")
+        
+        # Preprocess shapes with ontology (shapes only, not data)
+        sg = pre_process_shacl_graph_full(sg, ontology, inference_method)
+        
         method = f"PreSHACL-{method}"
 
     table = PrettyTable(['Method', 'Average validation time (s)', 'Standard deviation', 'Conform', '#Violation'])
@@ -47,9 +54,6 @@ def run_pyshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
     inter_time = []
     for n1 in range(0, 3):
         t1 = time.time()
-
-        if pre_shacl:
-            g, sg = pre_process_shacl_graph_full(g, sg, inference_method)
 
         conform, v_g, v_t = validate(g, shacl_graph=sg, inference=inference_method)
         t2 = time.time()
@@ -87,7 +91,7 @@ def run_pyshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
     print(table)
 
 
-def run_reshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
+def run_reshacl(dataset_name, g, sg, ontology_path, method, inference_method, pre_shacl=False):
     table = PrettyTable(['Method', 'Average validation time (s)', 'Standard deviation', 'Conform', '#Violation'])
     # method = "ReSHACL"
 
@@ -98,8 +102,6 @@ def run_reshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
     }"""
 
     if pre_shacl:
-        # Because the graph has already been fully entailed
-        inference_method = 'none'
         method = f"PreSHACL-{method}"
 
     inter_time = []
@@ -108,7 +110,14 @@ def run_reshacl(dataset_name, g, sg, method, inference_method, pre_shacl=False):
         fused_graph, same_dic, shapes = merged_graph(g, shacl_graph=sg, data_graph_format='turtle',
                                                      shacl_graph_format='turtle')
         if pre_shacl:
-            fused_graph, shapes = pre_process_shacl_graph_full(fused_graph, shapes, inference_method)
+            # Load ontology for shape preprocessing
+            ontology = Graph()
+            if ontology_path:
+                print("***** Loading ontology for shape preprocessing *****")
+                ontology.parse(ontology_path, format="xml")
+            
+            # Preprocess shapes with ontology (shapes only, not data)
+            shapes = pre_process_shacl_graph_full(shapes, ontology, inference_method)
 
         shapes.bind("dbo", DBO)
         if inference_method == 'owl-ld':
@@ -182,7 +191,7 @@ def run_experiment(dataset_name, dataset_uri, shapes_graph_uri, method='pyshacl'
 
     print(f"***** START VALIDATION ON [{dataset_name}] *****")
 
-    run_pyshacl(dataset_name, g, sg, method, inference_method, pre_shacl)
+    run_pyshacl(dataset_name, g, sg, ontology, method, inference_method, pre_shacl)
 
 
 if __name__ == "__main__":

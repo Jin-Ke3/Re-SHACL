@@ -1,8 +1,8 @@
 """
-End-to-end tests for SHACL shape preprocessing.
+Tests for SHACL shape preprocessing with ontology-based extension.
 
 These tests verify that the pre_process_shacl_graph_full function correctly
-processes SHACL shape graphs with various inference regimes.
+processes SHACL shape graphs using ontology information (TBox only, no data/ABox).
 """
 
 import sys
@@ -15,6 +15,7 @@ import pytest
 from rdflib import Graph, Namespace, URIRef, BNode, RDF, RDFS, Literal
 from rdflib.namespace import SH, OWL
 from pre_shacl.pre_processor import pre_process_shacl_graph_full
+from pre_shacl.ontology_shape_entailer import extract_allowed_paths
 
 
 # Define test namespace
@@ -22,15 +23,14 @@ EX = Namespace("http://example.org/")
 
 
 @pytest.fixture
-def simple_data_graph():
-    """Create a simple data graph for testing."""
+def simple_ontology():
+    """Create a simple ontology for testing."""
     g = Graph()
     g.bind("ex", EX)
     
-    # Add some basic data
-    g.add((EX.alice, RDF.type, EX.Person))
-    g.add((EX.alice, EX.name, Literal("Alice")))
-    g.add((EX.alice, EX.age, Literal(30)))
+    # Add property hierarchy
+    g.add((EX.nickname, RDFS.subPropertyOf, EX.name))
+    g.add((EX.age, RDFS.subPropertyOf, EX.hasValue))
     
     return g
 
@@ -62,40 +62,21 @@ def simple_shape_graph():
     return g
 
 
-@pytest.fixture
-def hierarchical_data_graph():
-    """Create a data graph with class hierarchy."""
-    g = Graph()
-    g.bind("ex", EX)
-    
-    # Class hierarchy: Student subClassOf Person
-    g.add((EX.Student, RDFS.subClassOf, EX.Person))
-    
-    # Data
-    g.add((EX.bob, RDF.type, EX.Student))
-    g.add((EX.bob, EX.name, Literal("Bob")))
-    g.add((EX.bob, EX.studentId, Literal("12345")))
-    
-    return g
-
-
 class TestPreprocessorNoRegime:
     """Test preprocessing with 'none' regime."""
     
-    def test_none_regime_no_changes(self, simple_data_graph, simple_shape_graph):
-        """Test that 'none' regime doesn't modify graphs."""
-        dg_initial_size = len(simple_data_graph)
+    def test_none_regime_no_changes(self, simple_shape_graph):
+        """Test that 'none' regime doesn't modify shapes."""
+        ontology = Graph()
         sg_initial_size = len(simple_shape_graph)
         
-        dg, sg = pre_process_shacl_graph_full(
-            simple_data_graph, 
-            simple_shape_graph, 
+        sg = pre_process_shacl_graph_full(
+            simple_shape_graph,
+            ontology,
             'none'
         )
         
-        # Graphs should be unchanged
-        assert len(dg) == dg_initial_size, \
-            "Data graph should not be modified with 'none' regime"
+        # Shape graph should be unchanged
         assert len(sg) == sg_initial_size, \
             "Shape graph should not be modified with 'none' regime"
 
@@ -103,29 +84,32 @@ class TestPreprocessorNoRegime:
 class TestPreprocessorRDFSRegime:
     """Test preprocessing with RDFS entailment."""
     
-    def test_rdfs_entails_data_graph(self, hierarchical_data_graph, simple_shape_graph):
-        """Test that RDFS regime entails the data graph."""
-        dg_initial_size = len(hierarchical_data_graph)
+    def test_rdfs_extends_shapes(self, simple_ontology, simple_shape_graph):
+        """Test that RDFS regime extends closed shapes with sub-properties."""
+        sg_initial_size = len(simple_shape_graph)
         
-        dg, sg = pre_process_shacl_graph_full(
-            hierarchical_data_graph, 
-            simple_shape_graph, 
+        sg = pre_process_shacl_graph_full(
+            simple_shape_graph,
+            simple_ontology,
             'rdfs'
         )
         
-        # Data graph should have new inferred triples
-        assert len(dg) > dg_initial_size, \
-            "Expected RDFS entailment to add triples to data graph"
+        # Shape graph should have new triples (sub-properties added)
+        assert len(sg) > sg_initial_size, \
+            "Expected shape extension to add triples"
         
-        # bob should be inferred as Person (via subClassOf)
-        assert (EX.bob, RDF.type, EX.Person) in dg, \
-            "Expected RDFS inference: Student subClassOf Person"
+        # Verify nickname was added as allowed property
+        allowed = extract_allowed_paths(sg, EX.PersonShape)
+        assert EX.name in allowed
+        assert EX.nickname in allowed, "Sub-property should be added"
     
-    def test_rdfs_updates_ignored_properties(self, hierarchical_data_graph, simple_shape_graph):
+    def test_rdfs_updates_ignored_properties(self, simple_shape_graph):
         """Test that RDFS regime updates ignored properties in closed shapes."""
-        dg, sg = pre_process_shacl_graph_full(
-            hierarchical_data_graph, 
-            simple_shape_graph, 
+        ontology = Graph()
+        
+        sg = pre_process_shacl_graph_full(
+            simple_shape_graph,
+            ontology,
             'rdfs'
         )
         
@@ -133,186 +117,133 @@ class TestPreprocessorRDFSRegime:
         assert len(sg) > 0, "Shape graph should not be empty"
         
         # PersonShape should still be a NodeShape
-        assert (EX.PersonShape, RDF.type, SH.NodeShape) in sg, \
-            "PersonShape should still be a NodeShape"
+        assert (EX.PersonShape, RDF.type, SH.NodeShape) in sg
+        
+        # Should have rdf:type in ignored properties
+        allowed = extract_allowed_paths(sg, EX.PersonShape)
+        assert RDF.type in allowed, "rdf:type should be in allowed (via ignoredProperties)"
 
 
 class TestPreprocessorOWLRegime:
     """Test preprocessing with OWL entailment."""
     
-    def test_owl_entails_data_graph(self):
-        """Test that OWL regime entails the data graph with sameAs."""
-        dg = Graph()
-        dg.bind("ex", EX)
-        
-        # Add sameAs relation
-        dg.add((EX.alice, OWL.sameAs, EX.alice2))
-        dg.add((EX.alice, RDF.type, EX.Person))
-        dg.add((EX.alice, EX.name, Literal("Alice")))
+    def test_owl_extends_with_equivalent_properties(self):
+        """Test that OWL regime handles equivalent properties."""
+        ontology = Graph()
+        ontology.bind("ex", EX)
+        ontology.add((EX.author, OWL.equivalentProperty, EX.creator))
         
         sg = Graph()
         sg.bind("ex", EX)
-        sg.bind("sh", SH)
+        sg.add((EX.BookShape, RDF.type, SH.NodeShape))
+        sg.add((EX.BookShape, SH.targetClass, EX.Book))
+        sg.add((EX.BookShape, SH.closed, Literal(True)))
         
-        # Simple non-closed shape
-        person_shape = EX.PersonShape
-        sg.add((person_shape, RDF.type, SH.NodeShape))
-        sg.add((person_shape, SH.targetClass, EX.Person))
+        prop = BNode()
+        sg.add((EX.BookShape, SH.property, prop))
+        sg.add((prop, SH.path, EX.author))
         
-        dg_initial_size = len(dg)
+        result = pre_process_shacl_graph_full(sg, ontology, 'rdfs')
         
-        dg, sg = pre_process_shacl_graph_full(dg, sg, 'owl-ld')
-        
-        # Data graph should have new inferred triples
-        assert len(dg) > dg_initial_size, \
-            "Expected OWL entailment to add triples to data graph"
-        
-        # alice2 should be inferred as Person (via sameAs)
-        assert (EX.alice2, RDF.type, EX.Person) in dg, \
-            "Expected OWL inference: sameAs property copying"
+        # Both properties should be allowed
+        allowed = extract_allowed_paths(result, EX.BookShape)
+        assert EX.author in allowed
+        assert EX.creator in allowed, "Equivalent property should be added"
 
 
-class TestPreprocessorClosedShapes:
-    """Test preprocessing behavior with closed shapes."""
+class TestClosedShapeExtension:
+    """Test closed shape extension with ontology."""
     
-    def test_closed_shape_has_ignored_properties(self, simple_data_graph, simple_shape_graph):
-        """Test that closed shapes have ignoredProperties."""
-        dg, sg = pre_process_shacl_graph_full(
-            simple_data_graph, 
-            simple_shape_graph, 
-            'none'
-        )
-        
-        # PersonShape should have ignoredProperties
-        ignored_props = list(sg.objects(EX.PersonShape, SH.ignoredProperties))
-        assert len(ignored_props) > 0, \
-            "Closed shape should have ignoredProperties list"
-    
-    def test_ignored_properties_includes_rdf_type(self, simple_data_graph, simple_shape_graph):
-        """Test that rdf:type is in ignored properties."""
-        dg, sg = pre_process_shacl_graph_full(
-            simple_data_graph, 
-            simple_shape_graph, 
-            'none'
-        )
-        
-        # Get ignoredProperties list
-        ignored_list = sg.value(EX.PersonShape, SH.ignoredProperties)
-        
-        # Convert RDF list to Python list
-        ignored_props = []
-        current = ignored_list
-        while current and current != RDF.nil:
-            first = sg.value(current, RDF.first)
-            if first:
-                ignored_props.append(first)
-            current = sg.value(current, RDF.rest)
-        
-        # rdf:type should be in ignored properties
-        assert RDF.type in ignored_props, \
-            "rdf:type should be in ignoredProperties for closed shapes"
-
-
-class TestPreprocessorIntegration:
-    """Integration tests for the full preprocessing pipeline."""
-    
-    def test_multiple_shapes_processing(self):
-        """Test processing multiple shapes in the same graph."""
-        dg = Graph()
-        dg.bind("ex", EX)
-        
-        # Data with two classes
-        dg.add((EX.alice, RDF.type, EX.Person))
-        dg.add((EX.alice, EX.name, Literal("Alice")))
-        dg.add((EX.course1, RDF.type, EX.Course))
-        dg.add((EX.course1, EX.title, Literal("Math 101")))
+    def test_transitive_subproperty_closure(self):
+        """Test transitive closure of subPropertyOf."""
+        ontology = Graph()
+        ontology.bind("ex", EX)
+        ontology.add((EX.writes, RDFS.subPropertyOf, EX.authors))
+        ontology.add((EX.pens, RDFS.subPropertyOf, EX.writes))
         
         sg = Graph()
         sg.bind("ex", EX)
-        sg.bind("sh", SH)
+        sg.add((EX.Shape1, RDF.type, SH.NodeShape))
+        sg.add((EX.Shape1, SH.closed, Literal(True)))
         
-        # Two closed shapes
-        person_shape = EX.PersonShape
-        sg.add((person_shape, RDF.type, SH.NodeShape))
-        sg.add((person_shape, SH.targetClass, EX.Person))
-        sg.add((person_shape, SH.closed, Literal(True)))
+        prop = BNode()
+        sg.add((EX.Shape1, SH.property, prop))
+        sg.add((prop, SH.path, EX.authors))
         
-        course_shape = EX.CourseShape
-        sg.add((course_shape, RDF.type, SH.NodeShape))
-        sg.add((course_shape, SH.targetClass, EX.Course))
-        sg.add((course_shape, SH.closed, Literal(True)))
+        result = pre_process_shacl_graph_full(sg, ontology, 'rdfs')
         
-        dg, sg = pre_process_shacl_graph_full(dg, sg, 'none')
-        
-        # Both shapes should still exist
-        assert (person_shape, RDF.type, SH.NodeShape) in sg
-        assert (course_shape, RDF.type, SH.NodeShape) in sg
+        # All properties in chain should be added
+        allowed = extract_allowed_paths(result, EX.Shape1)
+        assert EX.authors in allowed
+        assert EX.writes in allowed, "Direct sub-property should be added"
+        assert EX.pens in allowed, "Transitive sub-property should be added"
     
-    def test_non_closed_shape_unchanged(self):
-        """Test that non-closed shapes are not modified."""
-        dg = Graph()
-        dg.bind("ex", EX)
-        dg.add((EX.alice, RDF.type, EX.Person))
+    def test_open_shape_not_extended(self):
+        """Test that open shapes are not extended."""
+        ontology = Graph()
+        ontology.bind("ex", EX)
+        ontology.add((EX.nickname, RDFS.subPropertyOf, EX.name))
         
         sg = Graph()
         sg.bind("ex", EX)
-        sg.bind("sh", SH)
+        sg.add((EX.OpenShape, RDF.type, SH.NodeShape))
+        # Note: sh:closed NOT set (open shape)
         
-        # Non-closed shape (no sh:closed or sh:closed false)
-        person_shape = EX.PersonShape
-        sg.add((person_shape, RDF.type, SH.NodeShape))
-        sg.add((person_shape, SH.targetClass, EX.Person))
+        prop = BNode()
+        sg.add((EX.OpenShape, SH.property, prop))
+        sg.add((prop, SH.path, EX.name))
         
-        sg_initial_size = len(sg)
+        result = pre_process_shacl_graph_full(sg, ontology, 'rdfs')
         
-        dg, sg = pre_process_shacl_graph_full(dg, sg, 'rdfs')
-        
-        # Shape graph size should be unchanged (no ignoredProperties added)
-        # Note: This depends on implementation - may need adjustment
-        assert (person_shape, RDF.type, SH.NodeShape) in sg, \
-            "Non-closed shape should remain in graph"
+        # Only original property should be present
+        allowed = extract_allowed_paths(result, EX.OpenShape)
+        assert EX.name in allowed
+        assert EX.nickname not in allowed, "Open shapes should not be extended"
 
 
-class TestPreprocessorEdgeCases:
-    """Test edge cases and error conditions."""
+class TestErrorHandling:
+    """Test error handling in the preprocessing pipeline."""
     
-    def test_empty_data_graph(self, simple_shape_graph):
-        """Test preprocessing with empty data graph."""
-        dg = Graph()
+    def test_invalid_inference_level(self):
+        """Test handling of invalid inference level."""
+        ontology = Graph()
+        shapes_graph = Graph()
         
-        # Should not crash
-        dg, sg = pre_process_shacl_graph_full(dg, simple_shape_graph, 'none')
-        
-        assert len(dg) == 0, "Empty data graph should remain empty"
-        assert len(sg) > 0, "Shape graph should not be empty"
-    
-    def test_empty_shape_graph(self, simple_data_graph):
-        """Test preprocessing with empty shape graph."""
-        sg = Graph()
-        
-        # Should not crash
-        dg, sg = pre_process_shacl_graph_full(simple_data_graph, sg, 'none')
-        
-        assert len(dg) > 0, "Data graph should not be empty"
-        assert len(sg) == 0, "Empty shape graph should remain empty"
-    
-    def test_invalid_regime_falls_back(self, simple_data_graph, simple_shape_graph):
-        """Test that invalid regime is handled gracefully."""
-        # Note: This test depends on implementation behavior
-        # Some implementations might raise an error, others might default to 'none'
-        try:
-            dg, sg = pre_process_shacl_graph_full(
-                simple_data_graph, 
-                simple_shape_graph, 
-                'invalid-regime'
+        # Should raise ValueError
+        with pytest.raises(ValueError):
+            pre_process_shacl_graph_full(
+                shapes_graph, ontology, regime='invalid'
             )
-            # If no error, verify graphs are still valid
-            assert len(dg) > 0
-            assert len(sg) > 0
-        except (ValueError, KeyError):
-            # If it raises an error, that's also acceptable
-            pass
+    
+    def test_empty_graphs(self):
+        """Test preprocessing with empty graphs."""
+        ontology = Graph()
+        shapes_graph = Graph()
+        
+        # Should not crash
+        sg = pre_process_shacl_graph_full(
+            shapes_graph, ontology, regime='none'
+        )
+        
+        assert isinstance(sg, Graph)
+    
+    def test_copy_on_write(self, simple_shape_graph, simple_ontology):
+        """Test that preprocessing uses copy-on-write."""
+        original_size = len(simple_shape_graph)
+        
+        result = pre_process_shacl_graph_full(
+            simple_shape_graph, simple_ontology, 'rdfs'
+        )
+        
+        # Original should be unchanged
+        assert len(simple_shape_graph) == original_size, \
+            "Original shape graph should not be modified (copy-on-write)"
+        
+        # Result should be larger (extended)
+        assert len(result) > original_size, \
+            "Result should have additional triples"
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+

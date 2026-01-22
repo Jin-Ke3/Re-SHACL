@@ -22,13 +22,29 @@ from pre_shacl.shape_analyzer import (
     get_all_target_classes_for_shape
 )
 
-# Re-export shape entailer functions
+# Re-export shape entailer functions (old data-based)
 from pre_shacl.shape_entailer import (
     get_subgraph_for_entailment,
     entail_shape_graph,
     entail_has_value_on_property,
     entail_property_chain_axiom,
     extend_shacl_shape
+)
+
+# Re-export new ontology-based shape entailer functions
+from pre_shacl.ontology_shape_entailer import (
+    entail_shape_from_ontology,
+    entail_has_value_from_ontology,
+    extend_shacl_shape_from_ontology,
+    mark_generated_node,
+    strip_generated_paths,
+    extract_allowed_paths
+)
+
+# Re-export ontology closure functions
+from pre_shacl.ontology_closure import (
+    compute_subproperty_closure,
+    clear_closure_cache
 )
 
 # Re-export ignored properties manager functions
@@ -57,6 +73,14 @@ __all__ = [
     "entail_has_value_on_property",
     "entail_property_chain_axiom",
     "extend_shacl_shape",
+    "entail_shape_from_ontology",
+    "entail_has_value_from_ontology",
+    "extend_shacl_shape_from_ontology",
+    "mark_generated_node",
+    "strip_generated_paths",
+    "extract_allowed_paths",
+    "compute_subproperty_closure",
+    "clear_closure_cache",
     "get_current_ignored_properties",
     "add_ignored_properties_to_graph",
     "get_elements_in_rdf_list",
