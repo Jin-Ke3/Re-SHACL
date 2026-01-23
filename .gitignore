@@ -11,3 +11,5 @@ source/ShapesGraphs/lubm/.DS_Store
 *.pyc
 *.pyc
 /ReSHACL/__pycache__
+*.pyc
+/ReSHACL

@@ -1,0 +1,49 @@
+{
+  "inference_level": "rdfs",
+  "shapes": [
+    {
+      "name": "Shape_30_closed_3.ttl",
+      "original_triples": 13156,
+      "entailed_triples": 13192,
+      "added_triples": 36,
+      "load_time_s": 0.2924,
+      "entailment_time_s": 0.2644,
+      "save_time_s": 0.2761,
+      "total_time_s": 0.8329,
+      "output_file": "Shape_30_closed_3_entailed.ttl"
+    },
+    {
+      "name": "Shape_30_closed_6.ttl",
+      "original_triples": 13159,
+      "entailed_triples": 13179,
+      "added_triples": 20,
+      "load_time_s": 0.2802,
+      "entailment_time_s": 0.2598,
+      "save_time_s": 0.2952,
+      "total_time_s": 0.8353,
+      "output_file": "Shape_30_closed_6_entailed.ttl"
+    },
+    {
+      "name": "Shape_30_closed_15.ttl",
+      "original_triples": 13168,
+      "entailed_triples": 13188,
+      "added_triples": 20,
+      "load_time_s": 0.3183,
+      "entailment_time_s": 0.2678,
+      "save_time_s": 0.2693,
+      "total_time_s": 0.8554,
+      "output_file": "Shape_30_closed_15_entailed.ttl"
+    },
+    {
+      "name": "Shape_30_closed_30.ttl",
+      "original_triples": 13183,
+      "entailed_triples": 13273,
+      "added_triples": 90,
+      "load_time_s": 0.3281,
+      "entailment_time_s": 0.2628,
+      "save_time_s": 0.2885,
+      "total_time_s": 0.8794,
+      "output_file": "Shape_30_closed_30_entailed.ttl"
+    }
+  ]
+}
